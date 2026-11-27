@@ -9,6 +9,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;800&family=Barlow:wght@500;600;700&family=Barlow+Condensed:wght@500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- Three.js para a aba Estádio 3D: só é baixado quando a aba é aberta -->
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
 <style>
 :root {
   --branco: #FFFFFF; --concreto-claro: #F2F0EC; --concreto-linha: #E3DFD8; --concreto: #C9C4BB;
@@ -153,6 +160,68 @@ tr.d .mb i { background: var(--destaque); }
 dialog { overflow-x: hidden; }
 .est path.seg { cursor: pointer; transition: opacity .15s; }
 .est path.seg:hover { opacity: .85; }
+
+/* Estádio 3D */
+.m3d { display: grid; gap: 26px 30px; grid-template-columns: 1fr; align-items: start; }
+@media (min-width: 980px) { .m3d { grid-template-columns: minmax(0, 1fr) 360px; } }
+.m3d-esq { min-width: 0; }
+/* no computador, o modelo fica parado sob a barra enquanto a ficha rola */
+@media (min-width: 980px) and (min-height: 720px) { .m3d-esq { position: sticky; top: 100px; } }
+.m3d-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; margin-bottom: 12px; }
+.m3d-barra .grupo { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.m3d-barra .grupo > .rot { margin-right: 4px; }
+.m3d-barra .chip.zoom { font: 700 16px/1 var(--f-display); padding: 3px 10px 2px; min-width: 32px; }
+.m3d-check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font: 600 11px/1 var(--f-rotulo); letter-spacing: .1em; text-transform: uppercase; color: var(--grafite); }
+.m3d-check input { accent-color: var(--destaque); width: 15px; height: 15px; margin: 0; }
+.m3d-palco { position: relative; overflow: hidden; height: clamp(420px, 66vh, 640px); background: #ECE9E3; }
+@media (max-width: 759px) { .m3d-palco { height: 58vh; min-height: 340px; } }
+.m3d-palco canvas { display: block; }
+.m3d-camada { position: absolute; inset: 0; pointer-events: none; }
+.m3d-carregando { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; color: var(--grafite); }
+.m3d-rotulo { font: 600 10px/1.15 var(--f-rotulo); letter-spacing: .12em; text-transform: uppercase; padding: 4px 7px 3px; white-space: nowrap; color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.18); transition: opacity .25s; }
+.m3d-rotulo-superior { background: var(--destaque); }
+.m3d-rotulo-intermediario, .m3d-rotulo-terreo { background: var(--estrutura); }
+.m3d-rotulo-terreo { font-size: 9px; }
+.m3d-rotulo.de-costas { opacity: 0; }
+/* com cor de dado, os rótulos ficam brancos para não disputar com a escala */
+.m3d-palco.dados .m3d-rotulo { background: #fff; color: var(--texto); }
+.m3d-palco .m3d-rotulo.sel { background: var(--estrutura); color: #fff; }
+.m3d-dica { position: absolute; z-index: 3; pointer-events: none; background: var(--estrutura); color: #fff; padding: 7px 10px 6px; display: flex; flex-direction: column; gap: 2px; max-width: 260px; }
+.m3d-dica b { font: 700 16px/1.05 var(--f-display); letter-spacing: .01em; }
+.m3d-dica span { font: 600 9.5px/1.3 var(--f-rotulo); letter-spacing: .12em; text-transform: uppercase; color: var(--concreto); }
+.m3d-aviso-zoom { position: absolute; z-index: 2; left: 50%; bottom: 16px; transform: translateX(-50%); pointer-events: none; background: rgba(20,20,20,.82); color: #fff; padding: 8px 12px 7px; font: 600 11px/1 var(--f-rotulo); letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; opacity: 0; transition: opacity .2s; }
+.m3d-aviso-zoom.on { opacity: 1; }
+.m3d-rodape { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 24px; margin-top: 12px; }
+.m3d-leg { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-height: 18px; }
+.m3d-leg .v { font: 700 15px/1 var(--f-display); }
+.m3d-leg .grad { display: inline-block; width: 120px; height: 10px; }
+.m3d-leg .sem { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; font-size: 13px; color: var(--grafite); }
+.m3d-leg .sem i { width: 10px; height: 10px; display: inline-block; }
+.m3d-credito { margin-top: 8px; }
+.so-toque { display: none; }
+@media (hover: none) { .so-mouse { display: none; } .so-toque { display: inline; } }
+.m3d-ficha { position: relative; min-width: 0; border-top: 1px solid var(--concreto-linha); padding-top: 16px; }
+.m3d-ficha h3 { font: 700 34px/.95 var(--f-display); margin: 8px 0 8px; padding-right: 34px; }
+.m3d-ficha h3.lista { font: 600 19px/1.2 var(--f-texto); letter-spacing: -0.015em; margin: 6px 0 4px; padding-right: 0; }
+.m3d-ficha .nota { font-size: 13px; color: var(--concreto-escuro); margin: 4px 0 8px; }
+.m3d-ficha .txt { color: var(--grafite); margin: 10px 0 0; }
+.m3d-base { font-size: 13px; color: var(--grafite); line-height: 1.5; }
+.m3d-base .rot { margin-right: 6px; }
+.m3d-base b { font: 700 14px var(--f-display); color: var(--texto); }
+.m3d-ficha .kpis { grid-template-columns: 1fr 1fr; gap: 8px; margin: 16px 0 6px; }
+.m3d-ficha .kpi { padding: 12px 12px 11px; }
+.m3d-ficha .kpi .v { font-size: 30px; margin-top: 8px; }
+.m3d-ficha .kpi .n { font-size: 12px; margin-top: 6px; }
+.m3d-sec { margin-top: 22px; }
+.m3d-sec .graf { height: 170px; margin-top: 6px; }
+.m3d-sec .b100 { margin: 10px 0 8px; height: 26px; }
+.m3d-sec .rec { margin-top: 4px; }
+.m3d-nomes { list-style: none; margin: 6px 0 0; padding: 0; font-size: 13px; }
+.m3d-nomes li { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-top: 1px solid var(--concreto-linha); color: var(--grafite); }
+.m3d-nomes li:first-child { border-top: 0; }
+.m3d-nomes b { font: 700 15px/1.2 var(--f-display); color: var(--texto); white-space: nowrap; }
+.m3d-fechar { position: absolute; top: 8px; right: 0; border: 0; background: none; font-size: 24px; line-height: 1; cursor: pointer; color: var(--concreto-escuro); padding: 4px 6px; }
+.m3d-fechar:hover { color: var(--texto); }
 
 /* Lista de recordes */
 .rec { list-style: none; margin: 10px 0 0; padding: 0; }
@@ -314,6 +383,1296 @@ footer .l { display: flex; align-items: center; gap: 10px; }
 
   return { SPEC, VARIANTES, CORES, poligonos, svg };
 });
+</script>
+<!-- Modelo 3D (aba Estádio 3D): código embutido como texto pelo gerar_painel.py e só
+     carregado quando a aba é aberta. Geometria: "modelo 3d/js/estadio.js"; cena:
+     painel/estadio3d.js. -->
+<script type="text/plain" id="m3d-estadio">// Geometria do Morumbi (Estádio Cícero Pompeu de Toledo / MorumBIS).
+//
+// Tudo é gerado por código: um perfil de corte (distância radial t × altura h, em
+// metros) é "varrido" ao longo de uma superelipse. t = 0 é a borda interna das
+// arquibancadas, junto ao gramado. Cada setor de assento é uma malha própria, com
+// `userData.setor` apontando para o nome usado na base (coluna nome_generico de
+// Dados/base/morumbi_setores.csv), para ligar o modelo aos dados depois.
+//
+// Medidas: a borda interna das arquibancadas, a pista e a posição do campo vêm do
+// OpenStreetMap (© colaboradores do OpenStreetMap) conferidos com uma foto aérea
+// vertical, usando o campo de 105 × 68 m como régua. O contorno externo e as alturas
+// continuam aproximados, tirados de fotos. Ver ../README.md.
+//
+// Orientação: norte = -z, leste = +x. O ângulo θ conta do norte em sentido horário
+// visto de cima (0° norte, 90° leste, 180° sul, 270° oeste). O campo fica no eixo
+// norte–sul, como no mapa de setores do clube. A origem é o centro da borda interna
+// das arquibancadas; o campo fica um pouco deslocado dela (ver CAMPO).
+
+import * as THREE from 'three';
+
+const RAD = Math.PI / 180;
+
+// Forma em planta: superelipse |x/b|^n + |z/a|^n = 1 com n = 2,2, mais "achatada" que
+// a elipse (laterais mais retas, cabeceiras mais cheias). O expoente vem do ajuste aos
+// contornos interno e externo do OpenStreetMap (2,20 e 2,19) e ao aro na foto aérea
+// vertical (2,23).
+const N_SUPER = 2.2, P_SUPER = 2 / N_SUPER;
+const sPot = (v) => Math.sign(v) * Math.abs(v) ** P_SUPER;
+// x da superelipse de semi-eixos (b, a) na altura z
+const xNaBorda = (b, a, z) => b * Math.max(0, 1 - Math.abs(z / a) ** N_SUPER) ** (1 / N_SUPER);
+
+// Borda interna das arquibancadas (198 × 150 m no OpenStreetMap, confirmado na foto).
+export const A0 = 99;     // semi-eixo norte–sul (m)
+export const B0 = 74.8;   // semi-eixo leste–oeste (m)
+
+// O corte é desenhado com 50,5 m do muro ao aro, e o aro fica em 289 × 230 m (ajuste ao
+// aro na foto aérea). As distâncias radiais do corte são encaixadas entre as duas
+// superelipses: × 0,80 nas laterais e × 0,90 nas cabeceiras. As alturas não mudam.
+const T_ARO = 50.5;
+const A1 = 144.5, B1 = 115;
+const KA = (A1 - A0) / T_ARO, KB = (B1 - B0) / T_ARO;
+const semiA = (t) => A0 + KA * t;
+const semiB = (t) => B0 + KB * t;
+
+// Campo de 105 × 68 m. O centro dele fica 4 m a leste e 3 m ao sul do centro da borda
+// interna: a reta oeste da pista tem 8 raias e o "D" norte é mais fundo.
+export const CAMPO = { comp: 105, larg: 68, x: 4, z: 3 };
+
+// Pista de atletismo: retas longas e pontas em meia elipse (mais achatadas que um
+// semicírculo). Medidas da borda interna; 6 raias em volta e 8 na reta oeste, que
+// passa reta além do início das curvas.
+const LARG_RAIA = 1.22;
+export const PISTA = {
+  x: CAMPO.x - 2.2, z: CAMPO.z - 3.5,          // centro da borda interna
+  meiaReta: 53, meiaLarg: 41.5, fundo: 34,      // meia reta, meia largura, fundo das pontas
+  raias: 6, larg: 0.1 + 6 * LARG_RAIA,
+  extra: { larg: 2 * LARG_RAIA + 0.4, z0: CAMPO.z - 72.5, z1: CAMPO.z + 64.5 },
+};
+
+export const COR = {
+  vermelho: '#CF2027',
+  pista: '#B4472F',
+  concreto: '#D8D3CA',
+  concretoClaro: '#E9E6E0',
+  concretoMedio: '#BDB7AD',
+  concretoEscuro: '#8E8A83',
+  sombra: '#6F6B65',
+  vidro: '#3E454C',
+  branco: '#FFFFFF',
+  preto: '#1A1A1A',
+  ondaBranco: '#F4F2EE',
+  ondaPreto: '#1D2028',
+  grafite: '#3A3A3A',
+  gramaA: '#4E8A3E',
+  gramaB: '#5A9748',
+  entorno: '#4F8740',
+  caminho: '#A9A49B',
+  chao: '#E6E2DA',
+  praca: '#D3CEC4',
+  cabine: '#D9707A',
+};
+
+// --- Corte transversal --------------------------------------------------------
+// Pelas fotos internas: o anel térreo é baixo (poucas fileiras, quase no nível do
+// gramado); atrás dele, a parede envidraçada dos camarotes térreos; em cima dela, o
+// anel intermediário, quase todo coberto pelo balanço do anel superior; no fundo do
+// intermediário, sob o balanço, os camarotes superiores / tribuna; e o anel
+// superior, enorme, que vai até o aro. (t em unidades do corte; ver KA/KB.)
+export const ANEIS = {
+  terreo:        { t0: 0,   h0: 1.6,  t1: 8,  h1: 5.0,  n: 8,  nome: 'anel térreo' },
+  intermediario: { t0: 8.6, h0: 8.6,  t1: 22, h1: 15.6, n: 14, nome: 'anel intermediário' },
+  superior:      { t0: 10,  h0: 20.2, t1: 48, h1: 42.5, n: 40, nome: 'anel superior' },
+};
+const INCL_SUP = (ANEIS.superior.h1 - ANEIS.superior.h0) / (ANEIS.superior.t1 - ANEIS.superior.t0);
+
+// Fachada (fotos da Av. Giovanni Gronchi): aro fino em cima; logo abaixo, a parte
+// de baixo do anel superior fica à vista, com vigas radiais e pilares; depois duas
+// faixas horizontais de concreto e o térreo envidraçado.
+const ARO = { t: 48, h: 42.5, topo: 43.7, tFora: T_ARO, hFora: 40.2 };
+const FACHADA = {
+  tFundo: 32,                 // onde a parte de baixo do anel superior some no escuro
+  piso: 22.4,                 // piso da circulação aberta
+  faixa1: { t: 41.5, topo: 23.6, base: 18.8 },
+  recuo: { t: 39.8, base: 15.4 },
+  faixa2: { t: 41, base: 11 },
+  vidro: { t: 38.8, base: 1.2 },
+  embasamento: { t: 44.5, h: 1.2 },
+};
+const hBaixoSuperior = (t) => ARO.hFora - (ARO.tFora - 0.9 - t) * INCL_SUP;   // laje inferior do anel superior
+export const RAIO_PORTOES = 52;
+
+// Setores de assento. Nome da base, rótulo do mapa do clube, posição e faixa de θ.
+// Os limites entre lados ficam nas diagonais; o setor visitante ocupa o trecho sul
+// da arquibancada oeste, como no mapa de setores.
+export const SETORES = [
+  ['superior', 'arquibancada norte', 'Arquibancada Norte', 'norte', -45, 45],
+  ['superior', 'arquibancada leste', 'Arquibancada Leste', 'leste', 45, 135],
+  ['superior', 'arquibancada sul', 'Arquibancada Sul', 'sul', 135, 225],
+  ['superior', 'arquibancada visitante oeste', 'Arquibancada Visitante', 'oeste', 225, 252],
+  ['superior', 'arquibancada oeste', 'Arquibancada Oeste', 'oeste', 252, 315],
+  ['intermediario', 'cadeira superior norte', 'Cadeira Superior Norte', 'norte', -45, 45],
+  ['intermediario', 'cadeira superior leste', 'Cadeira Especial Leste', 'leste', 45, 135],
+  ['intermediario', 'cadeira superior sul', 'Cadeira Superior Sul', 'sul', 135, 225],
+  ['intermediario', 'cadeira superior oeste', 'Cadeira Especial Oeste', 'oeste', 225, 315],
+  ['terreo', 'cadeira térrea norte', 'Cadeira Térrea Norte', 'norte', -45, 45],
+  ['terreo', 'cadeira térrea leste', 'Cadeira Térrea Leste', 'leste', 45, 135],
+  ['terreo', 'cadeira térrea sul', 'Cadeira Térrea Sul', 'sul', 135, 225],
+  ['terreo', 'cadeira térrea oeste', 'Cadeira Térrea Oeste', 'oeste', 225, 315],
+].map(([anel, nome, rotulo, posicao, g0, g1]) => ({ anel, nome, rotulo, posicao, g0, g1, tipo: 'assento' }));
+
+const LADOS = [
+  ['norte', -45, 45], ['leste', 45, 135], ['sul', 135, 225], ['oeste', 225, 315],
+];
+
+// Portões, pela posição aproximada no mapa de setores do clube.
+export const PORTOES = [
+  { n: 2, g: 350 }, { n: 4, g: 45 }, { n: 5, g: 78 }, { n: 6, g: 112 },
+  { n: 15, g: 248 }, { n: 16, g: 280 }, { n: 18, g: 312 },
+];
+
+// Cabines de transmissão: no meio das duas laterais, sobre as primeiras fileiras do
+// anel superior, com cerca de 62 m cada (foto aérea; z de cada ponta, em metros). Um
+// lado é a TV e o outro o rádio; qual é qual não foi confirmado.
+// A oeste foi remedida em 26/11/2026 na foto aérea vertical noturna: as pontas das duas
+// cabines ficam quase alinhadas (a oeste começa 1,6 m mais ao norte no sul e termina
+// 0,6 m antes no norte). Antes ela estava em -34..28, uns 3 m ao norte, e cobria a
+// escada da boca norte da lateral oeste.
+export const CABINES = [
+  { lado: 'leste', z0: -32, z1: 32 },
+  { lado: 'oeste', z0: -31.4, z1: 30.4 },
+];
+const FUNDO_CABINE = 9;   // até onde o tampo da cabine entra no anel superior (unidades de t)
+
+// --- Utilidades de geometria ---------------------------------------------------
+// θ é o parâmetro da superelipse: x = b·sen(θ)^p, z = -a·cos(θ)^p (com sinal), p = 2/n.
+export function ponto(theta, t, h = 0) {
+  return new THREE.Vector3(semiB(t) * sPot(Math.sin(theta)), h, -semiA(t) * sPot(Math.cos(theta)));
+}
+
+function tangente(theta, t) {
+  const s = Math.sin(theta), c = Math.cos(theta);
+  const ds = P_SUPER * Math.max(Math.abs(s), 1e-4) ** (P_SUPER - 1);
+  const dc = P_SUPER * Math.max(Math.abs(c), 1e-4) ** (P_SUPER - 1);
+  return new THREE.Vector3(semiB(t) * ds * c, 0, semiA(t) * dc * s).normalize();
+}
+
+// Comprimento (m) do anel por radiano de θ, na distância t do corte.
+function metrosPorRad(theta, t) {
+  const s = Math.sin(theta), c = Math.cos(theta);
+  const ds = P_SUPER * Math.max(Math.abs(s), 1e-4) ** (P_SUPER - 1);
+  const dc = P_SUPER * Math.max(Math.abs(c), 1e-4) ** (P_SUPER - 1);
+  return Math.hypot(semiB(t) * ds * c, semiA(t) * dc * s);
+}
+
+// Metros reais por unidade de t (distância radial do corte) no ângulo θ.
+function metrosPorT(theta) {
+  return Math.hypot(KB * Math.abs(Math.sin(theta)) ** P_SUPER, KA * Math.abs(Math.cos(theta)) ** P_SUPER);
+}
+
+// θ (radianos) em que o anel, na distância t do corte, passa pela coordenada z, do
+// lado leste (+1) ou oeste (-1).
+function thetaEmZ(z, t, lado) {
+  const c = -Math.sign(z) * Math.min(1, Math.abs(z) / semiA(t)) ** (N_SUPER / 2);
+  const th = Math.acos(c);
+  return lado > 0 ? th : 2 * Math.PI - th;
+}
+
+// Varre um perfil [[t, h], ...] de g0 a g1 graus. Cada trecho do perfil vira uma
+// faixa com vértices próprios, para as quinas ficarem vivas. A face fica virada
+// para a esquerda de quem anda pelo perfil (subindo = para dentro; indo para
+// fora = para cima; descendo = para fora; voltando = para baixo).
+export function varrer(perfil, g0, g1, segPorGrau = 1.2) {
+  const th0 = g0 * RAD, th1 = g1 * RAD;
+  const segs = Math.max(1, Math.ceil((g1 - g0) * segPorGrau));
+  const pos = [], idx = [];
+  for (let k = 0; k < perfil.length - 1; k++) {
+    const [ta, ha] = perfil[k], [tb, hb] = perfil[k + 1];
+    if (ta === tb && ha === hb) continue;
+    const base = pos.length / 3;
+    for (let i = 0; i <= segs; i++) {
+      const th = th0 + (th1 - th0) * (i / segs);
+      const a = ponto(th, ta, ha), b = ponto(th, tb, hb);
+      pos.push(a.x, a.y, a.z, b.x, b.y, b.z);
+    }
+    for (let i = 0; i < segs; i++) {
+      const v0 = base + 2 * i, v1 = v0 + 1, v0n = v0 + 2, v1n = v0 + 3;
+      idx.push(v0, v0n, v1, v1, v0n, v1n);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// Como varrer(), mas entre dois limites que mudam com t: gA(t) e gB(t), em graus.
+// Usada nas escadas, que seguem a perpendicular às fileiras, e não um θ fixo.
+function varrerEntre(perfil, gA, gB, segs = 4) {
+  const pos = [], idx = [];
+  for (let k = 0; k < perfil.length - 1; k++) {
+    const [ta, ha] = perfil[k], [tb, hb] = perfil[k + 1];
+    if (ta === tb && ha === hb) continue;
+    const base = pos.length / 3;
+    const a0 = gA(ta), a1 = gB(ta), b0 = gA(tb), b1 = gB(tb);
+    for (let i = 0; i <= segs; i++) {
+      const u = i / segs;
+      const a = ponto((a0 + (a1 - a0) * u) * RAD, ta, ha), b = ponto((b0 + (b1 - b0) * u) * RAD, tb, hb);
+      pos.push(a.x, a.y, a.z, b.x, b.y, b.z);
+    }
+    for (let i = 0; i < segs; i++) {
+      const v0 = base + 2 * i, v1 = v0 + 1, v0n = v0 + 2, v1n = v0 + 3;
+      idx.push(v0, v0n, v1, v1, v0n, v1n);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// θ (graus), perto de `chute`, em que o anel na distância t cruza a reta p + s·dir
+// (vista de cima). Bissecção numa janela de ±25°, onde só há um cruzamento.
+function thetaNaReta(p, dir, t, chute) {
+  const f = (g) => { const q = ponto(g * RAD, t); return (q.x - p.x) * dir.z - (q.z - p.z) * dir.x; };
+  let a = chute - 25, b = chute + 25, fa = f(a);
+  if ((fa < 0) === (f(b) < 0)) return chute;
+  for (let i = 0; i < 40; i++) {
+    const m = (a + b) / 2, fm = f(m);
+    if ((fm < 0) === (fa < 0)) { a = m; fa = fm; } else b = m;
+  }
+  return (a + b) / 2;
+}
+
+// Tampa plana de um contorno fechado [[t, h], ...] no plano radial do ângulo g.
+function tampa(contorno, g) {
+  const th = g * RAD;
+  const tri = THREE.ShapeUtils.triangulateShape(contorno.map(([t, h]) => new THREE.Vector2(t, h)), []);
+  const pos = [];
+  for (const [t, h] of contorno) { const p = ponto(th, t, h); pos.push(p.x, p.y, p.z); }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setIndex(tri.flat());
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function degraus({ t0, h0, t1, h1, n }) {
+  const p = [[t0, h0]];
+  const dt = (t1 - t0) / n, dh = (h1 - h0) / n;
+  for (let k = 0; k < n; k++) {
+    const t = t0 + k * dt, h = h0 + (k + 1) * dh;
+    p.push([t, h], [t + dt, h]);
+  }
+  return p;
+}
+
+// Altura da linha que passa pelas quinas dos degraus.
+function hQuina(anel, t) {
+  const { t0, h0, t1, h1, n } = anel;
+  return h0 + (h1 - h0) / n + (t - t0) * ((h1 - h0) / (t1 - t0));
+}
+
+function material(cor, extra = {}) {
+  return new THREE.MeshStandardMaterial({ color: cor, roughness: 0.86, metalness: 0, ...extra });
+}
+
+function malha(geo, mat, sombra = true) {
+  const m = new THREE.Mesh(geo, mat);
+  m.castShadow = sombra;
+  m.receiveShadow = true;
+  return m;
+}
+
+// Matriz de um objeto alinhado à elipse: x = tangente, y = cima, z = para fora.
+function matrizNaElipse(theta, t, h, escala = new THREE.Vector3(1, 1, 1), inclinacao = 0) {
+  const tg = tangente(theta, t);
+  const fora = new THREE.Vector3(tg.z, 0, -tg.x);
+  const m = new THREE.Matrix4().makeBasis(tg, new THREE.Vector3(0, 1, 0), fora);
+  if (inclinacao) m.multiply(new THREE.Matrix4().makeRotationX(inclinacao));
+  m.scale(escala);
+  m.setPosition(ponto(theta, t, h));
+  return m;
+}
+
+// Caixa num plano radial, do ponto (tA, hA) ao (tB, hB), com largura na tangente e
+// espessura perpendicular. Serve para vigas e pilares inclinados.
+function matrizRadial(theta, [tA, hA], [tB, hB], larg, esp) {
+  const pA = ponto(theta, tA, hA), pB = ponto(theta, tB, hB);
+  const dir = new THREE.Vector3().subVectors(pB, pA);
+  const len = dir.length(); dir.normalize();
+  const tg = tangente(theta, (tA + tB) / 2);
+  const z = new THREE.Vector3().crossVectors(tg, dir).normalize();
+  const m = new THREE.Matrix4().makeBasis(tg, dir, z);
+  m.scale(new THREE.Vector3(larg, len, esp));
+  m.setPosition(pA.add(pB).multiplyScalar(0.5));
+  return m;
+}
+
+// Barra (cilindro) entre dois pontos, como matriz de instância.
+function matrizBarra(p, q, r) {
+  const dir = new THREE.Vector3().subVectors(q, p);
+  const len = dir.length();
+  const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+  return new THREE.Matrix4().compose(
+    new THREE.Vector3().addVectors(p, q).multiplyScalar(0.5), quat, new THREE.Vector3(r, len, r));
+}
+
+// Caixa alinhada aos eixos, de (x0, y0, z0) a (x1, y1, z1).
+function matrizCaixa(x0, y0, z0, x1, y1, z1) {
+  return new THREE.Matrix4().compose(
+    new THREE.Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), new THREE.Quaternion(),
+    new THREE.Vector3(Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0)));
+}
+
+function instancias(geo, mat, matrizes, sombra = true) {
+  const im = new THREE.InstancedMesh(geo, mat, matrizes.length);
+  matrizes.forEach((m, i) => im.setMatrixAt(i, m));
+  im.castShadow = sombra;
+  im.receiveShadow = true;
+  return im;
+}
+
+// --- Pista ---------------------------------------------------------------------
+// Ponto da borda da pista afastada d metros para fora (d < 0: para dentro), no
+// parâmetro u ∈ [0, 4]: 0–1 reta leste (norte → sul), 1–2 ponta sul (leste → oeste),
+// 2–3 reta oeste (sul → norte), 3–4 ponta norte (oeste → leste). Devolve [x, z].
+function pontoPista(u, d = 0) {
+  const { meiaReta: L, meiaLarg: W, fundo: D } = PISTA;
+  const w = W + d, f = D + d;
+  let x, z;
+  if (u < 1) { x = w; z = -L + 2 * L * u; }
+  else if (u < 2) { const a = (u - 1) * Math.PI; x = w * Math.cos(a); z = L + f * Math.sin(a); }
+  else if (u < 3) { x = -w; z = L - 2 * L * (u - 2); }
+  else { const a = (u - 3) * Math.PI; x = -w * Math.cos(a); z = -L - f * Math.sin(a); }
+  return [PISTA.x + x, PISTA.z + z];
+}
+
+// x da borda externa da pista na altura z, do lado leste (+1) ou oeste (-1).
+function xPistaFora(z, lado) {
+  const { meiaReta: L, meiaLarg: W, fundo: D, larg, extra } = PISTA;
+  const zl = Math.abs(z - PISTA.z);
+  let x = W + larg;
+  if (zl > L) { const k = (zl - L) / (D + larg); x = k >= 1 ? 0 : (W + larg) * Math.sqrt(1 - k * k); }
+  if (lado < 0 && z >= extra.z0 && z <= extra.z1) x = Math.max(x, W + larg + extra.larg);
+  return PISTA.x + lado * x;
+}
+
+const liso = (a, b, x) => { const k = Math.min(1, Math.max(0, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
+
+// --- Chão: campo, pista de atletismo e Ondas Tricolores ------------------------
+// Desenhado num canvas em coordenadas do mundo (x leste, z sul), como na foto aérea
+// vertical. Do muro para o campo:
+//   1. caminho de concreto junto ao muro;
+//   2. gramado com as Ondas grandes no meio das laterais (somem perto das quinas):
+//      a leste, dois lóbulos que se fecham no centro; a oeste, um trecho preto no
+//      meio que chega até a pista;
+//   3. pista de 6 raias, com 8 na reta oeste;
+//   4. dentro da pista, atrás dos gols (nas pontas), faixas preta, branca e vermelha
+//      onduladas coladas na pista; nas retas não há faixas;
+//   5. no "D" norte, o caminho em "T" que leva às saídas do túnel; faixa de
+//      publicidade junto à reta oeste;
+//   6. campo listrado com as linhas.
+function texturaChao(maxAniso) {
+  const H = 3072, s = H / (2 * A0);
+  const W = Math.ceil(2 * B0 * s);
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  const X = (x) => (x + B0) * s, Z = (z) => (z + A0) * s;
+  const caminho = (pts) => {
+    g.beginPath();
+    pts.forEach(([x, z], i) => (i ? g.lineTo(X(x), Z(z)) : g.moveTo(X(x), Z(z))));
+    g.closePath();
+  };
+  const poligono = (pts, cor) => { caminho(pts); g.fillStyle = cor; g.fill(); };
+  const faixa = (a, b, cor) => poligono([...a, ...b.slice().reverse()], cor);
+  const ret = (x0, z0, x1, z1, cor) => poligono([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], cor);
+  const elipse = (b, a, n = 900) => Array.from({ length: n }, (_, i) => {   // superelipse
+    const t = (i / n) * 2 * Math.PI; return [b * sPot(Math.sin(t)), -a * sPot(Math.cos(t))];
+  });
+  const N = 1600;
+  const pista = (d) => Array.from({ length: N }, (_, i) => pontoPista((4 * i) / N, d));
+  const ponta = (u0, fd) => Array.from({ length: 241 }, (_, i) => {
+    const a = (i / 240) * Math.PI; return pontoPista(u0 + a / Math.PI, fd(a));
+  });
+  const sin = Math.sin;
+
+  // 1. muro, caminho de concreto e gramado
+  g.fillStyle = COR.sombra;
+  g.fillRect(0, 0, W, H);
+  poligono(elipse(B0 - 1.2, A0 - 1.2), COR.caminho);
+  const MURO = 3.2;
+  poligono(elipse(B0 - MURO, A0 - MURO), COR.entorno);
+
+  // 2. Ondas grandes nas laterais. Em cada altura z, a faixa entre o caminho (f = 0)
+  // e a pista (f = 1, com 1,5 m de grama) é dividida em vermelho (junto ao muro),
+  // branco e preto (do lado da pista).
+  const zona = (lado, z) => [lado * xNaBorda(B0 - MURO, A0 - MURO, z), xPistaFora(z, lado) + lado * 1.5];
+  const ondas = (lado, limites) => {
+    const zs = [];
+    for (let zf = -78; zf <= 78; zf += 0.25) zs.push(zf);
+    const lim = zs.map(limites);
+    const curvas = [0, 1, 2, 3].map((j) => zs.map((zf, i) => {
+      const z = zf + CAMPO.z, [xm, xp] = zona(lado, z);
+      return [xm + (xp - xm) * lim[i][j], z];
+    }));
+    [COR.vermelho, COR.ondaBranco, COR.ondaPreto].forEach((cor, j) => faixa(curvas[j], curvas[j + 1], cor));
+  };
+  // zf: z em relação ao centro do campo
+  const lobo = (zf, z0, z1, k = 1, e = 0.75) => {
+    if (zf <= z0 || zf >= z1) return 0;
+    return sin(Math.PI * ((zf - z0) / (z1 - z0)) ** k) ** e;
+  };
+  ondas(1, (zf) => {   // leste: dois lóbulos que se fecham num ponto no meio da lateral
+    const L = zf < -2 ? lobo(zf, -76, -2, 1.5, 0.6) : lobo(zf, -2, 75, 0.7, 0.6);
+    const q = Math.min(1, Math.abs(zf + 2) / 74);   // 0 no meio da lateral, 1 nas quinas
+    const f0 = 0.04 * L + 0.12 * (1 - L) * Math.exp(-(((zf + 2) / 8) ** 2));
+    const f1 = f0 + L * (0.24 + 0.14 * q + 0.05 * sin(zf / 6 + 0.9));    // vermelho: mais largo nas pontas
+    const f2 = f1 + L * (0.19 + 0.06 * sin(zf / 4.5 + 2.1));             // branco
+    const f3 = f2 + L * (0.34 - 0.12 * q + 0.05 * sin(zf / 8 + 0.4));    // preto: mais largo perto do meio
+    return [f0, f1, f2, f3];
+  });
+  ondas(-1, (zf) => {  // oeste: o preto cresce no meio e encosta na pista
+    const L = lobo(zf, -72, 68, 1, 0.45);
+    const meio = Math.exp(-(((zf - 4) / 14) ** 2));
+    const f0 = 0.04 * L;
+    const f1 = f0 + L * (1 - meio) * (0.26 + 0.08 * sin(zf / 6 + 1.7));
+    const f2 = f1 + L * (1 - meio) * (0.18 + 0.07 * sin(zf / 4.5 + 0.3));
+    const fk = f2 + L * (0.26 + 0.1 * sin(zf / 8 + 2.4)) + 0.5 * meio;
+    const bico = Math.max(0, 1 - Math.abs(zf - 4) / 7);
+    return [f0, f1, f2, Math.min(1, fk + (1 - fk) * bico)];
+  });
+
+  // 3. pista: 6 raias em volta e a reta oeste com 8, reta além das curvas
+  poligono(pista(PISTA.larg), COR.pista);
+  const xe0 = PISTA.x - PISTA.meiaLarg, xe1 = xe0 - PISTA.larg - PISTA.extra.larg;
+  ret(xe1, PISTA.extra.z0, xe0, PISTA.extra.z1, COR.pista);
+  g.strokeStyle = 'rgba(255,255,255,0.75)';
+  g.lineWidth = 0.07 * s;
+  for (let k = 1; k < PISTA.raias; k++) { caminho(pista(0.1 + k * LARG_RAIA)); g.stroke(); }
+  for (let k = 1; k <= PISTA.raias + 1; k++) {
+    const x = xe0 - 0.1 - k * LARG_RAIA;
+    g.beginPath(); g.moveTo(X(x), Z(PISTA.extra.z0)); g.lineTo(X(x), Z(PISTA.extra.z1)); g.stroke();
+  }
+  g.strokeStyle = '#ffffff';
+  g.lineWidth = 0.12 * s;
+  caminho(pista(0.1));
+  g.stroke();
+
+  // 4. dentro da pista: gramado e as faixas dos dois "D", coladas na pista
+  const dentro = pista(0);
+  poligono(dentro, COR.entorno);
+  g.save();
+  caminho(dentro);
+  g.clip();
+  const envD = (a) => liso(0.25, 0.7, sin(a));
+  const faixasD = (u0, w1, w2, w3) => {
+    const b = [
+      ponta(u0, () => 0),
+      ponta(u0, (a) => -envD(a) * w1(a)),
+      ponta(u0, (a) => -envD(a) * (w1(a) + w2(a))),
+      ponta(u0, (a) => -envD(a) * (w1(a) + w2(a) + w3(a))),
+    ];
+    [COR.ondaPreto, COR.ondaBranco, COR.vermelho].forEach((cor, j) => faixa(b[j], b[j + 1], cor));
+  };
+  faixasD(3, (a) => 4.6 + 1.6 * sin(3 * a + 0.8),                       // norte (a: oeste → leste)
+    (a) => 3.4 + 1.6 * sin(5 * a + 2.0) + 0.6 * sin(9 * a),
+    (a) => 3.0 + 1.2 * sin(4 * a + 0.3));
+  faixasD(1, (a) => 5.5 + 2.8 * sin(2 * a + 0.9),                       // sul (a: leste → oeste)
+    (a) => 3.0 + 1.8 * sin(6 * a + 1.1),
+    (a) => 2.8 + 1.5 * sin(5 * a + 2.7));
+
+  // 5. caminho em "T" no "D" norte, com o calçamento das saídas do túnel, e a faixa
+  // de publicidade junto à reta oeste
+  const cx = CAMPO.x, cz = CAMPO.z, calcada = '#CFCAC0';
+  ret(xe1, cz - 70, PISTA.x + 60, cz - 68, calcada);
+  ret(cx + 12.6, cz - 110, cx + 15.6, cz - 68, calcada);
+  for (const [x0, x1] of TUNEL.aberturas) ret(cx + x0 - 0.8, cz - 68, cx + x1 + 0.8, cz + TUNEL.z1 + 0.8, calcada);
+  ret(xe0, cz - 70, xe0 + 2.5, cz + 55, '#D9D4CB');
+  for (let z = cz - 62; z < cz + 52; z += 7.5) ret(xe0 + 0.9, z, xe0 + 1.6, z + 4.2, '#E2683F');
+  g.restore();
+
+  // 6. gramado listrado e linhas do campo
+  const Xc = (x) => X(x + cx), Zc = (z) => Z(z + cz);
+  const hx = CAMPO.larg / 2, hz = CAMPO.comp / 2;
+  const listras = 14;
+  for (let i = 0; i < listras; i++) {
+    g.fillStyle = i % 2 ? COR.gramaA : COR.gramaB;
+    const z0 = -hz - 3 + ((CAMPO.comp + 6) / listras) * i;
+    g.fillRect(Xc(-hx - 1.5), Zc(z0), (CAMPO.larg + 3) * s, ((CAMPO.comp + 6) / listras) * s + 1);
+  }
+  g.strokeStyle = 'rgba(255,255,255,0.95)';
+  g.lineWidth = 0.18 * s;
+  g.fillStyle = '#fff';
+  const retLinha = (x0, z0, x1, z1) => g.strokeRect(Xc(x0), Zc(z0), (x1 - x0) * s, (z1 - z0) * s);
+  const arco = (x, z, r, a0, a1) => { g.beginPath(); g.arc(Xc(x), Zc(z), r * s, a0, a1); g.stroke(); };
+  const marca = (x, z) => { g.beginPath(); g.arc(Xc(x), Zc(z), 0.3 * s, 0, Math.PI * 2); g.fill(); };
+  retLinha(-hx, -hz, hx, hz);
+  g.beginPath(); g.moveTo(Xc(-hx), Zc(0)); g.lineTo(Xc(hx), Zc(0)); g.stroke();
+  arco(0, 0, 9.15, 0, Math.PI * 2);
+  marca(0, 0);
+  for (const lado of [-1, 1]) {
+    const gol = lado * hz;
+    retLinha(-20.16, Math.min(gol, gol - lado * 16.5), 20.16, Math.max(gol, gol - lado * 16.5));
+    retLinha(-9.16, Math.min(gol, gol - lado * 5.5), 9.16, Math.max(gol, gol - lado * 5.5));
+    const pen = gol - lado * 11;
+    marca(0, pen);
+    const ang = Math.acos(5.5 / 9.15);
+    if (lado < 0) arco(0, pen, 9.15, Math.PI / 2 - ang, Math.PI / 2 + ang);
+    else arco(0, pen, 9.15, -Math.PI / 2 - ang, -Math.PI / 2 + ang);
+  }
+  arco(-hx, -hz, 1, 0, Math.PI / 2);
+  arco(hx, -hz, 1, Math.PI / 2, Math.PI);
+  arco(-hx, hz, 1, -Math.PI / 2, 0);
+  arco(hx, hz, 1, Math.PI, Math.PI * 1.5);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = maxAniso;
+  return tex;
+}
+
+function construirChao(maxAniso) {
+  const forma = new THREE.Shape();
+  for (let i = 0; i < 720; i++) {
+    const t = (i / 720) * 2 * Math.PI, x = B0 * sPot(Math.sin(t)), y = A0 * sPot(Math.cos(t));
+    if (i) forma.lineTo(x, y); else forma.moveTo(x, y);
+  }
+  const geo = new THREE.ShapeGeometry(forma);
+  const p = geo.attributes.position, uv = geo.attributes.uv;
+  for (let i = 0; i < p.count; i++) {
+    uv.setXY(i, (p.getX(i) + B0) / (2 * B0), (p.getY(i) + A0) / (2 * A0));
+  }
+  geo.rotateX(-Math.PI / 2);
+  const m = malha(geo, material('#ffffff', { map: texturaChao(maxAniso), roughness: 0.95 }), false);
+  m.position.y = 0.02;
+  return m;
+}
+
+function construirGols() {
+  const grupo = new THREE.Group();
+  const mat = material('#ffffff', { roughness: 0.4 });
+  const rede = new THREE.MeshStandardMaterial({ color: '#ffffff', transparent: true, opacity: 0.35, roughness: 1, side: THREE.DoubleSide });
+  for (const lado of [-1, 1]) {
+    const g = new THREE.Group();
+    const poste = new THREE.CylinderGeometry(0.12, 0.12, 2.44, 8);
+    for (const x of [-3.66, 3.66]) {
+      const m = malha(poste, mat); m.position.set(x, 1.22, 0); g.add(m);
+    }
+    const trave = malha(new THREE.CylinderGeometry(0.12, 0.12, 7.56, 8), mat);
+    trave.rotation.z = Math.PI / 2; trave.position.set(0, 2.44, 0); g.add(trave);
+    const r = malha(new THREE.BoxGeometry(7.32, 2.44, 2), rede, false);
+    r.position.set(0, 1.22, lado * 1); g.add(r);
+    g.position.z = lado * CAMPO.comp / 2;
+    grupo.add(g);
+  }
+  grupo.position.set(CAMPO.x, 0, CAMPO.z);
+  return grupo;
+}
+
+// --- Saídas do túnel ------------------------------------------------------------
+// No "D" norte, ao longo do caminho em "T": a saída dos vestiários (a maior, a oeste
+// do centro) e duas escadas, abertas para o campo. Posições da foto aérea, em
+// relação ao centro do campo.
+const TUNEL = { z0: -68, z1: -61, aberturas: [[-15.4, -3.4], [-31.4, -28.4], [12.6, 15.6]] };
+function construirTunel() {
+  const paredes = [], fundos = [];
+  const e = 0.3;
+  for (const [a, b] of TUNEL.aberturas) {
+    const x0 = CAMPO.x + a, x1 = CAMPO.x + b, z0 = CAMPO.z + TUNEL.z0, z1 = CAMPO.z + TUNEL.z1;
+    const hp = b - a > 6 ? 1.2 : 1.0;
+    paredes.push(matrizCaixa(x0, 0, z0, x1, hp, z0 + e), matrizCaixa(x0, 0, z0, x0 + e, hp, z1), matrizCaixa(x1 - e, 0, z0, x1, hp, z1));
+    fundos.push(matrizCaixa(x0 + e, 0, z0 + e, x1 - e, 0.06, z1));
+  }
+  const grupo = new THREE.Group();
+  const caixa = new THREE.BoxGeometry(1, 1, 1);
+  grupo.add(instancias(caixa, material(COR.concretoClaro), paredes));
+  grupo.add(instancias(caixa, material(COR.grafite, { roughness: 1 }), fundos, false));
+  return grupo;
+}
+
+// --- Cabines de transmissão ------------------------------------------------------
+// Laje longa e quase plana sobre as primeiras fileiras do anel superior (fotos
+// internas): tampo liso rosado com claraboias escuras, frente de concreto cinza e,
+// logo abaixo dela, o vidro das cabines, voltado para o campo. Logo atrás das pontas
+// ficam duas das bocas de acesso do anel superior.
+function construirCabine(c) {
+  const sup = ANEIS.superior;
+  const tf = sup.t0 - 0.8, tB = sup.t0 + FUNDO_CABINE;
+  const hBase = sup.h0 - 0.2, hVidro = sup.h0 + 1.6, hTopo = sup.h0 + 2.6;
+  const hFundo = hQuina(sup, tB) + 0.35;
+  const mTampo = material(COR.cabine, { roughness: 0.7 });
+  const mFrente = material(COR.concretoMedio);
+  const mVidro = material(COR.vidro, { roughness: 0.25, metalness: 0.35 });
+  const mLado = material(COR.concretoClaro, { side: THREE.DoubleSide });
+  const malhas = [
+    malha(varrer([[tf, hBase], [tf, hVidro]], c.g0, c.g1), mVidro),
+    malha(varrer([[tf, hVidro], [tf, hTopo]], c.g0, c.g1), mFrente),
+    malha(varrer([[tf, hTopo], [tB, hFundo]], c.g0, c.g1), mTampo),
+    malha(varrer([[sup.t0, hBase], [tf, hBase]], c.g0, c.g1), mFrente),
+  ];
+  const contorno = [[tf, hBase], [tf, hTopo], [tB, hFundo], [tB, hFundo - 1.2], [sup.t0, hBase]];
+  for (const g of [c.g0, c.g1]) malhas.push(malha(tampa(contorno, g), mLado));
+
+  const extras = new THREE.Group();
+  const caixa = new THREE.BoxGeometry(1, 1, 1);
+  // claraboias: inclinadas como o tampo (inclinação real perto do meio da lateral)
+  const tc = (tf + tB) / 2;
+  const inclinacao = -Math.atan((hFundo - hTopo) / (KB * (tB - tf)));
+  const hc = hTopo + (hFundo - hTopo) * ((tc - tf) / (tB - tf)) + 0.08;
+  const claraboias = [0.2, 0.5, 0.8].map((k) => matrizNaElipse((c.g0 + (c.g1 - c.g0) * k) * RAD, tc, hc,
+    new THREE.Vector3(7, 0.16, 2.4), inclinacao));
+  extras.add(instancias(caixa, material(COR.ondaPreto, { roughness: 0.3, metalness: 0.3 }), claraboias, false));
+  return { malhas, extras };
+}
+
+// --- Telões ------------------------------------------------------------------------
+// Um em cada lateral, em pé sobre o aro e voltado para o campo, embaixo da estrutura
+// de iluminação (fotos aéreas e internas). Cerca de 20 × 11 m.
+function construirTelao(lado) {
+  const grupo = new THREE.Group();
+  const t = ARO.t - 0.4, zc = -2.5, base = ARO.topo + 0.6, alt = 11, larg = 20;
+  const th = thetaEmZ(zc, t, lado);
+  const caixa = new THREE.BoxGeometry(1, 1, 1);
+  const tela = malha(caixa, material('#16181B', { roughness: 0.35, metalness: 0.25 }));
+  matrizNaElipse(th, t, base + alt / 2, new THREE.Vector3(larg, alt, 0.9)).decompose(tela.position, tela.quaternion, tela.scale);
+  grupo.add(tela);
+  const pernas = [-1, 1].map((k) => {
+    const gk = thetaEmZ(zc + k * (larg / 2 - 1.5), t, lado);
+    return matrizNaElipse(gk, t, (ARO.h + base) / 2, new THREE.Vector3(0.8, base - ARO.h, 0.8));
+  });
+  grupo.add(instancias(caixa, material(COR.grafite), pernas));
+  return grupo;
+}
+
+// --- Estruturas de iluminação --------------------------------------------------
+// Uma em cada lateral (leste e oeste), com cerca de 80 m: treliça reta de seção
+// triangular, apoiada nas pontas em pares de pilares cilíndricos de concreto que
+// sobem do chão por fora do estádio, e no meio numa plataforma sobre o aro, acima
+// do telão. Os refletores ficam no banzo voltado para o campo.
+function construirIluminacao(lado) {          // lado = +1 (leste) ou -1 (oeste)
+  const grupo = new THREE.Group();
+  const comp = 80, N = 26;
+  const xMeio = lado * (semiB(ARO.t) + 1.6), hBaixo = ARO.topo + 14, hAlto = hBaixo + 4, hPlat = ARO.topo + 13;
+  const xIn = xMeio - lado * 2.2, xOut = xMeio + lado * 2.2;
+  const V = (x, h, z) => new THREE.Vector3(x, h, z);
+  const barras = [];
+  for (let i = 0; i <= N; i++) {
+    const z = -comp / 2 + (comp * i) / N, z2 = z + comp / N;
+    const a = V(xIn, hBaixo, z), b = V(xOut, hBaixo, z), t = V(xMeio, hAlto, z);
+    barras.push(matrizBarra(a, b, 0.12), matrizBarra(a, t, 0.12), matrizBarra(b, t, 0.12));
+    if (i < N) {
+      const a2 = V(xIn, hBaixo, z2), b2 = V(xOut, hBaixo, z2), t2 = V(xMeio, hAlto, z2);
+      barras.push(matrizBarra(a, a2, 0.24), matrizBarra(b, b2, 0.24), matrizBarra(t, t2, 0.24));
+      const par = i % 2 === 0;
+      barras.push(matrizBarra(par ? a : a2, par ? t2 : t, 0.1), matrizBarra(par ? b : b2, par ? t2 : t, 0.1),
+        matrizBarra(par ? a : a2, par ? b2 : b, 0.1));
+    }
+  }
+  // tirante de aço do meio até a plataforma
+  barras.push(matrizBarra(V(xMeio, hAlto, 0), V(xMeio, hPlat, 0), 0.3));
+  grupo.add(instancias(new THREE.CylinderGeometry(1, 1, 1, 6),
+    new THREE.MeshStandardMaterial({ color: '#C3C7CB', roughness: 0.45, metalness: 0.6 }), barras));
+
+  // pilares de concreto: par em cada ponta (do chão) e par curto no meio (no aro)
+  const mConc = material(COR.concretoClaro);
+  const pilares = [];
+  const xPilar = lado * (semiB(ARO.tFora) + 3);
+  for (const zp of [-comp / 2 + 3, comp / 2 - 3]) {
+    for (const dz of [-1.8, 1.8]) {
+      pilares.push(matrizBarra(V(xPilar, 0, zp + dz), V(xPilar, hBaixo + 1.5, zp + dz), 1.05));
+    }
+    pilares.push(matrizBarra(V(xPilar, hBaixo, zp), V(xOut, hBaixo, zp), 0.5));   // braço até a treliça
+  }
+  for (const dz of [-1.6, 1.6]) pilares.push(matrizBarra(V(xMeio, ARO.topo, dz), V(xMeio, hPlat - 0.6, dz), 0.9));
+  grupo.add(instancias(new THREE.CylinderGeometry(1, 1, 1, 14), mConc, pilares));
+  const plataforma = malha(new THREE.CylinderGeometry(3.4, 3.4, 1.4, 20), mConc);
+  plataforma.position.set(xMeio, hPlat, 0);
+  grupo.add(plataforma);
+
+  // refletores
+  const refl = [];
+  const alvo = new THREE.Vector3();
+  for (let i = 0; i < N; i++) {
+    const z = -comp / 2 + (comp * (i + 0.5)) / N;
+    for (const dh of [-0.9, 0.5]) {
+      const p = V(xIn - lado * 0.6, hBaixo + dh, z);
+      alvo.set(0, 0, z * 0.6);
+      const m = new THREE.Matrix4().lookAt(p, alvo, new THREE.Vector3(0, 1, 0));
+      m.scale(new THREE.Vector3(1.5, 1.0, 0.45));
+      m.setPosition(p);
+      refl.push(m);
+    }
+  }
+  grupo.add(instancias(new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshStandardMaterial({ color: '#F4F1E6', emissive: '#FFF6D8', emissiveIntensity: 0.35, roughness: 0.3 }), refl));
+  return grupo;
+}
+
+// --- Montagem -----------------------------------------------------------------
+export function construirEstadio({ maxAniso = 8 } = {}) {
+  const grupo = new THREE.Group();
+  const setores = [];
+  const alvos = [];   // malhas que respondem ao mouse
+
+  const mConcreto = material(COR.concreto);
+  const mConcretoClaro = material(COR.concretoClaro);
+  const mConcretoMedio = material(COR.concretoMedio, { roughness: 0.95 });
+  const mSombra = material(COR.sombra, { roughness: 1 });
+  const mBranco = material(COR.branco, { roughness: 0.7 });
+  const mVidro = material(COR.vidro, { roughness: 0.25, metalness: 0.35 });
+
+  // assentos
+  for (const s of SETORES) {
+    const anel = ANEIS[s.anel];
+    // o intermediário fica na sombra do balanço: vermelho um pouco mais escuro
+    const corAssento = s.anel === 'intermediario' ? '#A91C23' : COR.vermelho;
+    const m = malha(varrer(degraus(anel), s.g0, s.g1), material(corAssento, { roughness: 0.78 }));
+    m.userData.setor = s;
+    s.malhas = [m];
+    // rótulos escalonados por anel, para não se empilharem nas cabeceiras; o do
+    // intermediário fica na frente dele, fora do balanço
+    const desvio = { superior: 0, intermediario: 22, terreo: -22 }[s.anel];
+    const gRot = s.g1 - s.g0 < 60 ? (s.g0 + s.g1) / 2 : (s.g0 + s.g1) / 2 + desvio;
+    const tRot = { superior: anel.t0 + (anel.t1 - anel.t0) * 0.72, intermediario: anel.t0 + 1.8, terreo: (anel.t0 + anel.t1) / 2 }[s.anel];
+    s.centro = ponto(gRot * RAD, tRot, hQuina(anel, tRot) + 2.5);
+    setores.push(s);
+    alvos.push(m);
+    grupo.add(m);
+  }
+
+  // camarotes: paredes envidraçadas atrás do térreo e no fundo do intermediário
+  const bandas = [
+    { anel: 'terreo', t: ANEIS.terreo.t1, h0: ANEIS.terreo.h1, h1: ANEIS.intermediario.h0, vidro: [5.5, 7.9], prefixo: 'camarote térreo', rot: 'Camarote Térreo' },
+    { anel: 'superior', t: ANEIS.intermediario.t1, h0: ANEIS.intermediario.h1, h1: 18.6, vidro: [16.1, 18.1], prefixo: 'camarote superior', rot: 'Camarote Superior / Tribuna' },
+  ];
+  for (const b of bandas) {
+    for (const [lado, g0, g1] of LADOS) {
+      const s = {
+        tipo: 'camarote', anel: b.anel,
+        nome: `${b.prefixo} ${lado}`, rotulo: `${b.rot} ${lado[0].toUpperCase()}${lado.slice(1)}`,
+        posicao: lado, g0, g1,
+        outrosNomes: b.anel === 'superior' ? [`camarote tribuna ${lado}`] : [],
+      };
+      const parede = malha(varrer([[b.t, b.h0], [b.t, b.h1]], g0, g1), material(COR.concretoClaro));
+      const vidro = malha(varrer([[b.t - 0.06, b.vidro[0]], [b.t - 0.06, b.vidro[1]]], g0, g1), material(COR.vidro, { roughness: 0.25, metalness: 0.35 }), false);
+      for (const m of [parede, vidro]) { m.userData.setor = s; alvos.push(m); grupo.add(m); }
+      s.malhas = [parede, vidro];
+      s.centro = ponto(((g0 + g1) / 2) * RAD, b.t, b.h1 + 1);
+      setores.push(s);
+    }
+  }
+
+  // cabines de transmissão (não são setores de venda: não aparecem nos boletins)
+  for (const cab of CABINES) {
+    const lado = cab.lado === 'leste' ? 1 : -1;
+    const ga = thetaEmZ(cab.z0, ANEIS.superior.t0, lado) / RAD, gb = thetaEmZ(cab.z1, ANEIS.superior.t0, lado) / RAD;
+    const c = { ...cab, g0: Math.min(ga, gb), g1: Math.max(ga, gb) };
+    const Lado = `${c.lado[0].toUpperCase()}${c.lado.slice(1)}`;
+    const s = { tipo: 'cabine', anel: 'superior', nome: `cabines de transmissão ${c.lado}`,
+      rotulo: `Cabines de Transmissão ${Lado}`, posicao: c.lado, g0: c.g0, g1: c.g1, outrosNomes: [] };
+    const { malhas, extras } = construirCabine(c);
+    for (const m of malhas) { m.userData.setor = s; alvos.push(m); grupo.add(m); }
+    grupo.add(extras);
+    s.malhas = malhas;
+    setores.push(s);
+  }
+
+  const anelInteiro = (perfil, mat, sombra = true) => grupo.add(malha(varrer(perfil, 0, 360), mat, sombra));
+
+  // por dentro
+  anelInteiro([[0, 0], [0, ANEIS.terreo.h0]], mBranco);                                       // muro baixo do térreo
+  anelInteiro([[ANEIS.terreo.t1, ANEIS.intermediario.h0], [ANEIS.intermediario.t0, ANEIS.intermediario.h0]], mConcreto); // parapeito
+  const sup = ANEIS.superior;
+  anelInteiro([[ANEIS.intermediario.t1, 18.6], [sup.t0, 18.6]], mConcretoClaro);            // laje sob o balanço
+  anelInteiro([[sup.t0, 18.6], [sup.t0, sup.h0]], material(COR.vermelho, { roughness: 0.7 }));  // testeira vermelha do anel superior
+  anelInteiro([[ARO.t, ARO.h], [ARO.t, ARO.topo], [ARO.tFora, ARO.topo], [ARO.tFora, ARO.hFora], [ARO.tFora - 0.9, ARO.hFora]], mConcretoClaro);
+
+  // por fora
+  const F = FACHADA;
+  anelInteiro([[ARO.tFora - 0.9, ARO.hFora], [F.tFundo, hBaixoSuperior(F.tFundo)]], mConcretoMedio);  // anel superior visto de baixo
+  anelInteiro([[F.tFundo, hBaixoSuperior(F.tFundo)], [F.tFundo, F.piso]], mSombra);                   // fundo escuro da circulação
+  anelInteiro([[F.tFundo, F.piso], [F.faixa1.t - 1.4, F.piso], [F.faixa1.t - 1.4, F.faixa1.topo], [F.faixa1.t, F.faixa1.topo]], mConcreto);
+  anelInteiro([[F.faixa1.t, F.faixa1.topo], [F.faixa1.t, F.faixa1.base]], mConcretoClaro);           // faixa 1
+  anelInteiro([[F.faixa1.t, F.faixa1.base], [F.recuo.t, F.faixa1.base], [F.recuo.t, F.recuo.base], [F.faixa2.t, F.recuo.base]], mSombra);
+  anelInteiro([[F.faixa2.t, F.recuo.base], [F.faixa2.t, F.faixa2.base]], mConcretoClaro);            // faixa 2
+  anelInteiro([[F.faixa2.t, F.faixa2.base], [F.vidro.t, F.faixa2.base]], mConcreto);
+  anelInteiro([[F.vidro.t, F.faixa2.base], [F.vidro.t, F.vidro.base]], mVidro);                       // térreo envidraçado
+  anelInteiro([[F.vidro.t, F.vidro.base], [F.embasamento.t, F.embasamento.h], [F.embasamento.t, 0]], mConcreto);
+
+  // vigas radiais sob o anel superior, pilares da circulação e caixilhos do térreo
+  {
+    const vigas = [], pilares = [], caixilhos = [];
+    for (let g = 0; g < 360; g += 3) {
+      const th = g * RAD;
+      const d = 0.75;   // a viga fica pendurada sob a laje
+      vigas.push(matrizRadial(th, [F.tFundo, hBaixoSuperior(F.tFundo) - d], [ARO.tFora - 1.1, ARO.hFora - d], 0.7, 1.5));
+      if (g % 6 === 0) {
+        const tp = F.faixa1.t - 0.7;
+        pilares.push(matrizRadial(th, [tp, F.faixa1.topo], [tp, hBaixoSuperior(tp)], 1.2, 1.2));
+      }
+    }
+    for (let g = 0; g < 360; g += 1.5) {
+      caixilhos.push(matrizNaElipse(g * RAD, F.vidro.t + 0.1, (F.vidro.base + F.faixa2.base) / 2, new THREE.Vector3(0.25, F.faixa2.base - F.vidro.base, 0.25)));
+    }
+    const caixa = new THREE.BoxGeometry(1, 1, 1);
+    grupo.add(instancias(caixa, mConcretoMedio, vigas));
+    grupo.add(instancias(caixa, mConcretoClaro, pilares));
+    grupo.add(instancias(caixa, mConcreto, caixilhos, false));
+  }
+
+  // escadas (corredores brancos) e divisas entre setores dos anéis térreo e
+  // intermediário; as do anel superior seguem as bocas (abaixo)
+  const divisas = new Set([45, 135, 225, 315]);
+  for (const chave of ['terreo', 'intermediario']) {
+    const a = ANEIS[chave];
+    const perfil = [[a.t0, hQuina(a, a.t0) + 0.1], [a.t1, a.h1 + 0.1]];
+    for (let g = 0; g < 360; g += 15) {
+      const largura = divisas.has(g) ? 0.9 : 0.42;
+      grupo.add(malha(varrer(perfil, g - largura / 2, g + largura / 2), mBranco, false));
+    }
+  }
+
+  // 12 bocas de acesso do público no anel superior, em pares simétricos (foto aérea):
+  // duas em cada cabeceira, uma em cada quina e duas em cada lateral, logo atrás das
+  // pontas das cabines de transmissão. Vistas de cima têm cerca de 8,5 × 7,5 m: uma
+  // caixa de concreto que sai dos degraus, com tampo menos inclinado que a
+  // arquibancada e a abertura escura voltada para o campo.
+  //
+  // Escadas (fotos aéreas vertical e oblíqua de 26/11/2026): cada boca tem UMA escada
+  // de concreto, encostada num dos lados dela, que vai do pé ao alto do anel; a boca
+  // abre para essa escada. Entre as bocas não há escada, a não ser uma no meio da
+  // lateral oeste, do aro até as costas da cabine (na leste não há). As linhas
+  // pontilhadas nas diagonais das fotos são grades de divisão de setor, não escadas.
+  // Largura medida com a boca como régua: cerca de 2,8 m.
+  {
+    const mBoca = material(COR.concretoClaro);
+    const mLadoBoca = material(COR.concretoClaro, { side: THREE.DoubleSide });
+    const mAbertura = material(COR.grafite, { roughness: 1 });
+    const mEscada = material('#C4BEB4', { roughness: 0.95 });
+    const dh = (sup.h1 - sup.h0) / sup.n;
+    const hBase = (t) => hQuina(sup, t) - dh - 0.1;          // sempre abaixo dos degraus
+    const LARG = 8.5, FUNDO = 7.5, ABERTURA = 5.2, LARG_ESCADA = 2.8;
+    // Lado da escada de cada boca, visto de cima: +1 no sentido horário (θ crescente),
+    // -1 no anti-horário. Nas cabeceiras e quinas ela fica sempre no lado horário; nas
+    // laterais, no lado de fora (longe da cabine). Exceções, pela chave θ × 10:
+    //   257,9° (lateral oeste, boca sul): lado anti-horário, que é o lado de fora;
+    //   77,9° (lateral leste, boca norte): do aro até a boca pelo lado da cabine
+    //   (horário) e da boca até o pé pelo lado de fora (anti-horário).
+    const EXCECOES = { 779: { pe: -1, aro: 1 }, 2579: { pe: -1, aro: -1 } };
+    const ladoEscada = (g) => EXCECOES[Math.round(g * 10)] || { pe: 1, aro: 1 };
+    const bocas = [[15.1, 21.6], [48.7, 23.2], [77.9, 23.6]]   // [θ, t] no quadrante nordeste
+      .flatMap(([g, t]) => [g, 180 - g, 180 + g, 360 - g].map((gg) => ({ g: gg, t })))
+      .sort((a, b) => a.g - b.g);
+    const graus = (metros, g, t) => (metros / metrosPorRad(g * RAD, t)) / RAD;
+    for (const b of bocas) {
+      const { g, t } = b;
+      const k = metrosPorT(g * RAD);
+      const tf = t - FUNDO / 2 / k, tb = t + FUNDO / 2 / k;
+      Object.assign(b, { tf, tb });
+      const meia = graus(LARG / 2, g, t), meiaAb = graus(ABERTURA / 2, g, t);
+      const hFrente = hQuina(sup, tf) + 2.6, hFundo = hQuina(sup, tb) + 0.4;
+      for (const perfil of [[[tf, hBase(tf)], [tf, hFrente]], [[tf, hFrente], [tb, hFundo]], [[tb, hFundo], [tb, hBase(tb)]]]) {
+        grupo.add(malha(varrer(perfil, g - meia, g + meia, 3), mBoca));
+      }
+      const contorno = [[tf, hBase(tf)], [tf, hFrente], [tb, hFundo], [tb, hBase(tb)]];
+      for (const gl of [g - meia, g + meia]) grupo.add(malha(tampa(contorno, gl), mLadoBoca));
+      const ta = tf - 0.06 / k;
+      grupo.add(malha(varrer([[ta, hQuina(sup, tf) - 0.3], [ta, hQuina(sup, tf) + 1.9]], g - meiaAb, g + meiaAb, 3), mAbertura, false));
+    }
+    // escadas: degraus de concreto um pouco acima e à frente dos assentos (para os
+    // espelhos não coincidirem com os dos assentos). Cada escada é uma faixa reta,
+    // perpendicular às fileiras no ponto (g, t), deslocada `d` metros ao longo delas;
+    // nas fotos, as das laterais quase não convergem. de..ate recorta o trecho em t.
+    const perfilEscada = degraus(sup).map(([t, h]) => [t - 0.06, h + 0.06]);
+    const escada = (g, t, d, de = -Infinity, ate = Infinity) => {
+      const tg = tangente(g * RAD, t), normal = new THREE.Vector3(tg.z, 0, -tg.x);
+      const centro = ponto(g * RAD, t).addScaledVector(tg, d);
+      const pA = centro.clone().addScaledVector(tg, -LARG_ESCADA / 2);
+      const pB = centro.clone().addScaledVector(tg, LARG_ESCADA / 2);
+      const perfil = perfilEscada.filter(([tt]) => tt >= de && tt <= ate);
+      grupo.add(malha(varrerEntre(perfil, (tt) => thetaNaReta(pA, normal, tt, g), (tt) => thetaNaReta(pB, normal, tt, g)), mEscada, false));
+    };
+    const encosta = LARG / 2 + LARG_ESCADA / 2 + 0.15;   // do meio da boca ao meio da escada (m)
+    for (const { g, t, tf, tb } of bocas) {
+      const { pe, aro } = ladoEscada(g);
+      if (pe === aro) {
+        escada(g, t, pe * encosta);
+      } else {
+        escada(g, t, pe * encosta, -Infinity, tf);   // do pé até a frente da boca
+        escada(g, t, aro * encosta, tb, Infinity);   // do fundo da boca até o aro
+      }
+    }
+    // a do meio da lateral oeste, do fundo da cabine até o aro
+    const cab = CABINES.find((c) => c.lado === 'oeste');
+    const gCab = (thetaEmZ(cab.z0, sup.t0, -1) + thetaEmZ(cab.z1, sup.t0, -1)) / 2 / RAD;
+    const tCab = sup.t0 + FUNDO_CABINE;
+    escada(gCab, tCab, 0, tCab, Infinity);
+  }
+
+  grupo.add(construirIluminacao(1));
+  grupo.add(construirIluminacao(-1));
+  grupo.add(construirTelao(1));
+  grupo.add(construirTelao(-1));
+  grupo.add(construirChao(maxAniso));
+  grupo.add(construirGols());
+  grupo.add(construirTunel());
+
+  return { grupo, setores, alvos };
+}
+
+// --- Entorno -------------------------------------------------------------------
+export function construirEntorno() {
+  const grupo = new THREE.Group();
+  const chao = malha(new THREE.CircleGeometry(1600, 96), material(COR.chao, { roughness: 1 }), false);
+  chao.rotation.x = -Math.PI / 2;
+  chao.position.y = -0.05;
+  grupo.add(chao);
+  grupo.add(malha(varrer([[FACHADA.embasamento.t - 0.5, 0.01], [96, 0.01]], 0, 360, 0.8), material(COR.praca, { roughness: 1 }), false));
+  // sem árvores: o entorno fica só com o chão e a praça (pedido do usuário, 26/11/2026)
+  return grupo;
+}
+</script>
+<script type="text/plain" id="m3d-cena">// Modelo 3D do Morumbi dentro do painel (aba "Estádio 3D").
+//
+// A geometria é a mesma da página do modelo ("modelo 3d/js/estadio.js"). Este arquivo
+// monta a cena num quadro da página e devolve um controle para o painel, que liga os
+// setores aos dados: cores, dica ao passar o mouse e ficha ao clicar. Ele não lê os
+// dados do painel; recebe tudo por montar().
+//
+// O gerar_painel.py embute este arquivo e o estadio.js no painel/index.html, e o painel
+// só os carrega, junto com o Three.js, quando a aba é aberta. Na hora de carregar, o
+// painel troca o caminho do import da geometria (abaixo) pelo endereço da geometria
+// embutida; por isso esse caminho, entre aspas, só pode aparecer uma vez neste arquivo.
+
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { construirEstadio, construirEntorno, ponto, PORTOES, RAIO_PORTOES, COR, ANEIS } from './estadio.js';
+
+const RAD = Math.PI / 180;
+const FUNDO = '#ECE9E3';
+
+const VISTAS = {
+  aerea:   { pos: [110, 230, -420], alvo: [0, 8, 0] },
+  lateral: { pos: [-440, 120, 70],  alvo: [0, 14, 0] },
+  cima:    { pos: [0, 640, 0.1],    alvo: [0, 0, 0] },
+  gramado: { pos: [-18, 7, -62],    alvo: [0, 18, 60] },
+};
+const suave = (x) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2);
+
+/**
+ * Monta a cena dentro de `palco` (um elemento com tamanho definido pelo CSS).
+ * Lança erro se o navegador não tiver WebGL.
+ *
+ * opções:
+ *   aoSelecionar(setor | null)  chamado quando o usuário clica num setor (ou fora)
+ *   dica(setor) → HTML          texto da dica ao passar o mouse
+ *   rotulos, portoes            estado inicial das camadas
+ */
+export function montar(palco, opcoes = {}) {
+  const { aoSelecionar = () => {}, dica = (s) => s.rotulo } = opcoes;
+
+  // --- Renderizadores -----------------------------------------------------------
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.domElement.className = 'm3d-canvas';
+  palco.appendChild(renderer.domElement);
+
+  const rotuloRenderer = new CSS2DRenderer();
+  rotuloRenderer.domElement.className = 'm3d-camada';
+  palco.appendChild(rotuloRenderer.domElement);
+
+  const caixaDica = document.createElement('div');
+  caixaDica.className = 'm3d-dica';
+  caixaDica.hidden = true;
+  palco.appendChild(caixaDica);
+
+  const avisoZoom = document.createElement('div');
+  avisoZoom.className = 'm3d-aviso-zoom';
+  avisoZoom.textContent = 'Use Ctrl + rolagem para aproximar';
+  palco.appendChild(avisoZoom);
+
+  // --- Cena ---------------------------------------------------------------------
+  const cena = new THREE.Scene();
+  const fundo = new THREE.Color(FUNDO);
+  cena.background = fundo;
+  cena.fog = new THREE.Fog(fundo, 900, 2000);
+
+  const camera = new THREE.PerspectiveCamera(32, 1.6, 1, 5000);
+  const controles = new OrbitControls(camera, renderer.domElement);
+  controles.enableDamping = true;
+  controles.dampingFactor = 0.08;
+  controles.maxPolarAngle = 86 * RAD;
+  controles.minDistance = 40;
+  controles.maxDistance = 1100;
+  controles.enableZoom = false;   // a roda do mouse rola a página; Ctrl + roda aproxima
+
+  // Em São Paulo o sol da tarde vem do norte/noroeste.
+  cena.add(new THREE.HemisphereLight('#ffffff', '#B8B1A5', 1.6));
+  const sol = new THREE.DirectionalLight('#FFF8EE', 2.6);
+  sol.position.set(-200, 340, -260);
+  sol.castShadow = true;
+  const sombra = palco.clientWidth >= 760 ? 4096 : 2048;
+  sol.shadow.mapSize.set(sombra, sombra);
+  Object.assign(sol.shadow.camera, { left: -300, right: 300, top: 300, bottom: -300, near: 10, far: 1200 });
+  sol.shadow.bias = -0.0004;
+  sol.shadow.normalBias = 0.4;
+  cena.add(sol);
+
+  const { grupo, setores, alvos } = construirEstadio({ maxAniso: renderer.capabilities.getMaxAnisotropy() });
+  setores.forEach((s, i) => { s.id = i; });
+  cena.add(grupo);
+  cena.add(construirEntorno());
+
+  // --- Rótulos dos setores ------------------------------------------------------
+  const rotulos = [];
+  for (const s of setores.filter((x) => x.tipo === 'assento')) {
+    const el = document.createElement('div');
+    el.className = `m3d-rotulo m3d-rotulo-${s.anel}`;
+    el.textContent = s.rotulo;
+    const obj = new CSS2DObject(el);
+    obj.position.copy(s.centro);
+    // normal média da arquibancada (para dentro e para cima), para esconder o rótulo
+    // quando o setor está de costas para a câmera, atrás da fachada
+    const meio = ((s.g0 + s.g1) / 2) * RAD;
+    const dentro = ponto(meio, 0).sub(ponto(meio, 10)).setY(0).normalize();
+    const a = ANEIS[s.anel], incl = Math.atan2(a.h1 - a.h0, a.t1 - a.t0);
+    obj.userData.normal = dentro.multiplyScalar(Math.sin(incl)).add(new THREE.Vector3(0, Math.cos(incl), 0)).normalize();
+    obj.userData.limite = s.anel === 'superior' ? -0.12 : 0;   // anéis baixos somem antes atrás do aro
+    obj.userData.setor = s;
+    grupo.add(obj);
+    rotulos.push(obj);
+  }
+  // Rótulo escondido quando há estrutura entre ele e a câmera. O teste de raio é caro,
+  // então só roda com a câmera parada há um instante (e a cada 300 ms enquanto ela se
+  // move); a regra da normal esconde na hora os de costas.
+  const paraCamera = new THREE.Vector3();
+  const raioRotulo = new THREE.Raycaster();
+  const obstaculos = [];
+  grupo.traverse((o) => { if (o.isMesh && !o.isInstancedMesh) obstaculos.push(o); });
+  const ultimaPosCamera = new THREE.Vector3(Infinity, 0, 0);
+  let ultimoTeste = 0, testePendente = true;
+  function ocultarRotulosDeCostas(agora) {
+    const mexeu = camera.position.distanceToSquared(ultimaPosCamera) > 0.01;
+    if (mexeu) { ultimaPosCamera.copy(camera.position); testePendente = true; }
+    if (!testePendente || (mexeu && agora - ultimoTeste < 300)) return;
+    ultimoTeste = agora;
+    testePendente = mexeu;   // se ainda está mexendo, testa de novo quando parar
+    for (const r of rotulos) {
+      paraCamera.subVectors(camera.position, r.position);
+      const dist = paraCamera.length();
+      paraCamera.divideScalar(dist);
+      let escondido = paraCamera.dot(r.userData.normal) < r.userData.limite;
+      if (!escondido && r.visible) {
+        raioRotulo.set(r.position, paraCamera);
+        raioRotulo.far = dist;
+        escondido = raioRotulo.intersectObjects(obstaculos, false).some((h) => h.distance > 1.5);
+      }
+      r.element.classList.toggle('de-costas', escondido);
+    }
+  }
+
+  // --- Portões (placas no estilo do mapa do clube) ------------------------------
+  const portoes = new THREE.Group();
+  cena.add(portoes);
+  function placaPortao(n) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const g = c.getContext('2d');
+    g.fillStyle = '#DA1F26';
+    g.fillRect(0, 0, 128, 128);
+    g.fillStyle = '#ffffff';
+    g.font = '700 84px "Barlow Condensed", "Arial Narrow", sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(String(n), 64, 70);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: true }));
+    sp.scale.set(9, 9, 1);
+    return sp;
+  }
+  document.fonts.load('700 84px "Barlow Condensed"').catch(() => {}).finally(() => {
+    for (const p of PORTOES) {
+      const sp = placaPortao(p.n);
+      sp.position.copy(ponto(p.g * RAD, RAIO_PORTOES, 9));
+      const haste = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 4.5, 6),
+        new THREE.MeshStandardMaterial({ color: COR.grafite }));
+      haste.position.copy(ponto(p.g * RAD, RAIO_PORTOES, 2.25));
+      portoes.add(sp, haste);
+    }
+  });
+
+  // --- Cores --------------------------------------------------------------------
+  for (const s of setores) for (const m of s.malhas) m.userData.corOriginal = '#' + m.material.color.getHexString();
+  // Malha que recebe a cor do dado: os degraus do setor ou a parede do camarote. As
+  // cabines não são setor de venda e ficam sempre com a cor do estádio.
+  const pintaveis = (s) => (s.tipo === 'cabine' ? [] : [s.malhas[0]]);
+  let ultimaDica = null;
+  function colorir(cores, semDado = COR.concretoMedio) {
+    for (const s of setores) {
+      for (const m of s.malhas) m.material.color.set(m.userData.corOriginal);
+      if (cores) for (const m of pintaveis(s)) m.material.color.set(cores.get(s) || semDado);
+    }
+    palco.classList.toggle('dados', !!cores);
+    ultimaDica = null;   // os números da dica podem ter mudado
+  }
+
+  // --- Seleção e destaque -------------------------------------------------------
+  let sobMouse = null, selecionado = null;
+  function marcar(s, ligado, forte = false) {
+    if (!s) return;
+    for (const m of s.malhas) m.material.emissive.set(ligado ? (forte ? '#5a5a5a' : '#3a3a3a') : '#000000');
+  }
+  function atualizarDestaques() {
+    for (const s of setores) marcar(s, false);
+    marcar(sobMouse, true);
+    marcar(selecionado, true, true);
+    for (const r of rotulos) r.element.classList.toggle('sel', r.userData.setor === selecionado);
+  }
+  function selecionar(s) { selecionado = s || null; atualizarDestaques(); }
+
+  const raio = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  let ultimoEvento = null, arrastou = false, inicioToque = null;
+
+  const tela = renderer.domElement;
+  tela.addEventListener('pointermove', (e) => {
+    ultimoEvento = e;
+    if (inicioToque && Math.hypot(e.clientX - inicioToque[0], e.clientY - inicioToque[1]) > 5) arrastou = true;
+  });
+  tela.addEventListener('pointerleave', () => {
+    ultimoEvento = null; sobMouse = null; caixaDica.hidden = true; atualizarDestaques();
+  });
+  tela.addEventListener('pointerdown', (e) => { inicioToque = [e.clientX, e.clientY]; arrastou = false; });
+  tela.addEventListener('pointerup', (e) => {
+    if (!arrastou) {
+      const s = setorEm(e);
+      selecionado = s && s !== selecionado ? s : null;
+      atualizarDestaques();
+      aoSelecionar(selecionado);
+    }
+    inicioToque = null;
+  });
+
+  // A roda do mouse rola a página. Com Ctrl (ou o gesto de pinça do trackpad, que
+  // chega como Ctrl + roda) ela aproxima. Este ouvinte roda na captura, antes do
+  // OrbitControls, que só segura o evento quando o zoom está ligado.
+  let timerAviso = 0;
+  palco.addEventListener('wheel', (e) => {
+    const zoom = e.ctrlKey || e.metaKey;
+    controles.enableZoom = zoom;
+    if (!zoom) {
+      avisoZoom.classList.add('on');
+      clearTimeout(timerAviso);
+      timerAviso = setTimeout(() => avisoZoom.classList.remove('on'), 1400);
+    }
+  }, { capture: true, passive: true });
+  // No toque, a pinça de dois dedos aproxima (não há roda para rolar a página).
+  palco.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse') controles.enableZoom = true;
+  }, { capture: true });
+
+  function setorEm(e) {
+    const r = tela.getBoundingClientRect();
+    mouse.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    raio.setFromCamera(mouse, camera);
+    const hit = raio.intersectObjects(alvos, false)[0];
+    return hit ? hit.object.userData.setor : null;
+  }
+
+  function verificarMouse() {
+    if (!ultimoEvento || inicioToque) return;
+    const s = setorEm(ultimoEvento);
+    if (s !== sobMouse) { sobMouse = s; atualizarDestaques(); }
+    if (!s) {
+      caixaDica.hidden = true;
+      tela.style.cursor = '';
+      return;
+    }
+    if (s !== ultimaDica) { caixaDica.innerHTML = dica(s); ultimaDica = s; }
+    caixaDica.hidden = false;
+    tela.style.cursor = 'pointer';
+    const r = palco.getBoundingClientRect();
+    let x = ultimoEvento.clientX - r.left + 14, y = ultimoEvento.clientY - r.top + 14;
+    if (x + caixaDica.offsetWidth > r.width - 6) x -= caixaDica.offsetWidth + 28;
+    if (y + caixaDica.offsetHeight > r.height - 6) y -= caixaDica.offsetHeight + 28;
+    caixaDica.style.left = `${Math.max(4, x)}px`;
+    caixaDica.style.top = `${Math.max(4, y)}px`;
+  }
+
+  // --- Vistas e zoom ------------------------------------------------------------
+  let animacao = null;
+  const aspecto = () => (palco.clientWidth && palco.clientHeight ? palco.clientWidth / palco.clientHeight : 1.6);
+  function irPara(nome, instantaneo = false) {
+    const v = VISTAS[nome];
+    const destinoPos = new THREE.Vector3(...v.pos), destinoAlvo = new THREE.Vector3(...v.alvo);
+    // em quadro estreito, afasta a câmera para caber o estádio
+    const a = aspecto();
+    if (nome !== 'gramado' && a < 1.4) {
+      destinoPos.sub(destinoAlvo).multiplyScalar(a < 1.1 ? Math.min(2.4, 1.15 / a) : 1.08).add(destinoAlvo);
+    }
+    if (instantaneo) {
+      camera.position.copy(destinoPos); controles.target.copy(destinoAlvo); controles.update();
+      return;
+    }
+    animacao = { t0: performance.now(), dur: 1300,
+      dePos: camera.position.clone(), deAlvo: controles.target.clone(), paraPos: destinoPos, paraAlvo: destinoAlvo };
+  }
+  function aproximar(fator) {   // fator < 1 aproxima
+    const alvo = controles.target.clone(), d = camera.position.distanceTo(alvo);
+    const nova = THREE.MathUtils.clamp(d * fator, controles.minDistance, controles.maxDistance);
+    animacao = { t0: performance.now(), dur: 350, dePos: camera.position.clone(), deAlvo: alvo,
+      paraPos: camera.position.clone().sub(alvo).multiplyScalar(nova / d).add(alvo), paraAlvo: alvo };
+  }
+
+  function verRotulos(v) { rotulos.forEach((r) => { r.visible = v; }); testePendente = true; }
+  function verPortoes(v) { portoes.visible = v; }
+  verRotulos(opcoes.rotulos !== false);
+  verPortoes(opcoes.portoes !== false);
+
+  // --- Tamanho e laço -----------------------------------------------------------
+  function redimensionar() {
+    const w = palco.clientWidth, h = palco.clientHeight;
+    if (!w || !h) return;   // aba escondida
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+    rotuloRenderer.setSize(w, h);
+  }
+  new ResizeObserver(redimensionar).observe(palco);
+
+  // A cena só é desenhada com a aba aberta (o painel liga e desliga por ativar()).
+  let ativo = false, laco = 0;
+  function quadro(agora) {
+    if (!ativo) { laco = 0; return; }
+    laco = requestAnimationFrame(quadro);
+    if (!palco.clientWidth) return;
+    if (animacao) {
+      const k = Math.min(1, (agora - animacao.t0) / animacao.dur), e = suave(k);
+      camera.position.lerpVectors(animacao.dePos, animacao.paraPos, e);
+      controles.target.lerpVectors(animacao.deAlvo, animacao.paraAlvo, e);
+      if (k >= 1) animacao = null;
+    }
+    controles.update();
+    ocultarRotulosDeCostas(agora);
+    verificarMouse();
+    renderer.render(cena, camera);
+    rotuloRenderer.render(cena, camera);
+  }
+  function ativar(ligado) {
+    ativo = ligado;
+    if (ligado) { redimensionar(); if (!laco) laco = requestAnimationFrame(quadro); }
+    else caixaDica.hidden = true;
+  }
+
+  redimensionar();
+  irPara('aerea', true);
+
+  return { setores, colorir, selecionar, irPara, aproximar, verRotulos, verPortoes, ativar };
+}
 </script>
 <script>
 "use strict";
@@ -508,7 +1867,7 @@ function heat(t) { t = Math.min(1, Math.max(0, t)); const n = HEAT.length - 1, i
 /* ---------- Abas ---------- */
 const ABAS = [
   ['geral', 'Visão geral'], ['publico', 'Público'], ['arrecadacao', 'Arrecadação'], ['precos', 'Preços'],
-  ['setores', 'Setores'], ['socio', 'Sócio-torcedor'], ['jogos', 'Jogos'], ['dinamica', 'Tabela dinâmica'], ['notas', 'Notas e método']
+  ['setores', 'Setores'], ['estadio', 'Estádio 3D'], ['socio', 'Sócio-torcedor'], ['jogos', 'Jogos'], ['dinamica', 'Tabela dinâmica'], ['notas', 'Notas e método']
 ];
 const RENDER = {};
 let ATIVA = 'geral';
@@ -524,6 +1883,7 @@ function abrir(k, rolar = true) {
   document.querySelectorAll('.aba').forEach(b => b.setAttribute('aria-selected', b.dataset.k === k));
   document.querySelectorAll('.painel').forEach(p => p.classList.toggle('ativo', p.id === 'p-' + k));
   document.getElementById('filtros').classList.toggle('sem', k === 'notas');
+  if (M3D) M3D.ativar(k === 'estadio');   // a cena 3D só é desenhada com a aba aberta
   try { history.replaceState(null, '', '#' + k); } catch (e) {}
   if (SUJA.has(k)) { SUJA.delete(k); RENDER[k](document.getElementById('p-' + k)); }
   if (rolar) { const b = document.querySelector('.barra'); if (window.scrollY > b.offsetTop) window.scrollTo({ top: b.offsetTop, behavior: 'instant' in document.documentElement.style ? 'instant' : 'auto' }); }
@@ -1024,6 +2384,213 @@ function pivo() {
 }
 
 /* =====================================================================
+   ESTÁDIO 3D
+   ===================================================================== */
+// O código do modelo vem embutido pelo gerar_painel.py nos dois <script type="text/plain">
+// do começo da página e só é carregado, junto com o Three.js, quando esta aba é aberta.
+// Cada setor do modelo é ligado aos borderôs pelo nome genérico (DIC.genericos): o nome
+// do setor no modelo e, nos camarotes superiores, também o "camarote tribuna" do lado.
+let M3D = null, M3D_CARGA = null;
+const E3 = { met: 'v', sel: null, vista: 'aerea', rot: window.innerWidth >= 640, port: true, mapa: null, dados: null };
+const E3_METR = {
+  estadio: { t: 'Estádio' },
+  v:   { t: 'Ingressos', f: o => o.v, fmt: fN, curto: fMilMi, un: ' ingressos' },
+  pj:  { t: 'Por jogo', f: o => o.v / o.g.size, fmt: fN, curto: fN, un: ' ingressos por jogo' },
+  a:   { t: 'Arrecadação', f: o => o.a, fmt: fMi, curto: fMiCurto, un: ' de arrecadação' },
+  pm:  { t: 'Preço médio', f: o => o.vp ? o.ap / o.vp : null, fmt: fR, curto: v => 'R$ ' + nf0.format(v), un: ' de preço médio' },
+  soc: { t: '% sócio', f: o => o.vs / o.v * 100, fmt: v => fP(v), curto: v => fP(v, 0), un: ' de sócios' },
+};
+const E3_VISTAS = [['aerea', 'Aérea'], ['lateral', 'Lateral'], ['cima', 'De cima'], ['gramado', 'Do gramado']];
+const E3_ANEL = { superior: 'Anel superior', intermediario: 'Anel intermediário', terreo: 'Anel térreo' };
+const E3_SEM = '#BDB7AD';   // setor do modelo sem ingressos no filtro
+const e3Met = () => E3_METR[E3.met === 'estadio' ? 'v' : E3.met];
+const e3Nomes = s => [s.nome, ...(s.outrosNomes || [])];
+
+function carregar3D() {
+  if (!M3D_CARGA) {
+    const url = txt => URL.createObjectURL(new Blob([txt], { type: 'text/javascript' }));
+    const geometria = url(document.getElementById('m3d-estadio').textContent);
+    // a cena importa './estadio.js'; aqui esse caminho vira o endereço da geometria embutida
+    M3D_CARGA = import(url(document.getElementById('m3d-cena').textContent.replace("'./estadio.js'", JSON.stringify(geometria))));
+  }
+  return M3D_CARGA;
+}
+
+// Uma passada pelas linhas de setor do filtro: totais por setor do modelo e o que fica fora dele.
+function e3Agrega(rows) {
+  const por = new Map(), fora = new Map(); let tot = 0, totA = 0;
+  const soma1 = (m, k, v) => m.set(k, (m.get(k) || 0) + v);
+  for (const i of rows) {
+    const v = S.v[i]; tot += v; totA += S.a[i];
+    const s = E3.mapa.get(S.gen[i]);
+    if (!s) { soma1(fora, S.gen[i], v); continue; }
+    let o = por.get(s);
+    if (!o) por.set(s, o = { s, v: 0, a: 0, vp: 0, ap: 0, vs: 0, tipo: [0, 0, 0, 0], g: new Map(), gen: new Map(), nomes: new Map() });
+    o.v += v; o.a += S.a[i];
+    if (S.tp[i] !== 2) { o.vp += v; o.ap += S.a[i]; }
+    if (S.soc[i]) o.vs += v;
+    o.tipo[S.soc[i] ? 0 : S.tp[i] === 1 ? 2 : S.tp[i] === 2 ? 3 : 1] += v;   // sócio, inteira, meia, gratuidade
+    soma1(o.g, S.g[i], v); soma1(o.gen, S.gen[i], v); soma1(o.nomes, S.n[i], v);
+  }
+  return { por, fora, tot, totA };
+}
+
+RENDER.estadio = el => {
+  if (!el.dataset.montado) { el.dataset.montado = '1'; e3Montar(el); }
+  e3Atualizar();
+};
+
+function e3Montar(el) {
+  el.innerHTML = `<div id="e3-cab"></div><div id="e3-aviso"></div>
+    <div class="m3d" style="margin-top:22px">
+      <div class="m3d-esq">
+        <div class="m3d-barra">
+          <div class="grupo" id="e3-met"></div>
+          <div class="grupo" id="e3-vis"></div>
+          <div class="grupo"><button class="chip zoom" id="e3-mais" title="Aproximar" aria-label="Aproximar">+</button><button class="chip zoom" id="e3-menos" title="Afastar" aria-label="Afastar">−</button></div>
+          <label class="m3d-check"><input type="checkbox" id="e3-rot"${E3.rot ? ' checked' : ''}> Rótulos</label>
+          <label class="m3d-check"><input type="checkbox" id="e3-port"${E3.port ? ' checked' : ''}> Portões</label>
+        </div>
+        <div class="m3d-palco" id="e3-palco"><div class="m3d-carregando" id="e3-carregando">Carregando o modelo 3D…</div></div>
+        <div class="m3d-rodape"><div class="m3d-leg" id="e3-leg"></div><span class="rot so-mouse">Arraste para girar · Ctrl + rolagem para aproximar · clique num setor</span><span class="rot so-toque">Arraste para girar · dois dedos para aproximar · toque num setor</span></div>
+        <div class="rot m3d-credito">Modelo estilizado, medidas aproximadas · chão: dados © colaboradores do OpenStreetMap</div>
+      </div>
+      <aside class="m3d-ficha" id="e3-ficha"></aside>
+    </div>`;
+  e3Controles();
+  document.getElementById('e3-mais').onclick = () => M3D && M3D.aproximar(0.7);
+  document.getElementById('e3-menos').onclick = () => M3D && M3D.aproximar(1 / 0.7);
+  document.getElementById('e3-rot').onchange = e => { E3.rot = e.target.checked; if (M3D) M3D.verRotulos(E3.rot); };
+  document.getElementById('e3-port').onchange = e => { E3.port = e.target.checked; if (M3D) M3D.verPortoes(E3.port); };
+  carregar3D().then(mod => {
+    M3D = mod.montar(document.getElementById('e3-palco'), { aoSelecionar: s => { E3.sel = s; e3Ficha(); }, dica: e3Dica, rotulos: E3.rot, portoes: E3.port });
+    document.getElementById('e3-carregando').remove();
+    E3.mapa = new Map();
+    for (const s of M3D.setores) if (s.tipo !== 'cabine') for (const n of e3Nomes(s)) { const k = DIC.genericos.indexOf(n); if (k >= 0) E3.mapa.set(k, s); }
+    M3D.ativar(ATIVA === 'estadio');
+    e3Atualizar();
+  }).catch(err => {
+    console.error(err);
+    const c = document.getElementById('e3-carregando');
+    if (c) c.textContent = 'O modelo 3D não carregou. Ele precisa de internet (o Three.js vem de um CDN) e de WebGL no navegador. Os mesmos números por setor estão na aba Setores.';
+  });
+}
+
+function e3Controles() {
+  const chips = (rot, lista, ativo, attr) => `<span class="rot">${rot}</span>` + lista.map(([k, t]) => `<button class="chip${k === ativo ? ' on' : ''}" data-${attr}="${k}" aria-pressed="${k === ativo}">${t}</button>`).join('');
+  document.getElementById('e3-met').innerHTML = chips('Cor', Object.entries(E3_METR).map(([k, v]) => [k, v.t]), E3.met, 'm');
+  document.getElementById('e3-vis').innerHTML = chips('Vista', E3_VISTAS, E3.vista, 'v');
+  document.querySelectorAll('#e3-met .chip').forEach(b => b.onclick = () => { E3.met = b.dataset.m; e3Controles(); e3Atualizar(); });
+  document.querySelectorAll('#e3-vis .chip').forEach(b => b.onclick = () => { E3.vista = b.dataset.v; e3Controles(); if (M3D) M3D.irPara(E3.vista); });
+}
+
+function e3Atualizar() {
+  const cabEl = document.getElementById('e3-cab'); if (!cabEl) return;
+  const { jogos, rows } = sel();
+  const texto = 'Cada setor do modelo está ligado aos borderôs pelo nome do setor. Clique num setor para ver os números dele nos jogos do filtro; a cor mostra a medida escolhida. O modelo é uma maquete estilizada, não uma planta.';
+  if (!M3D) { cabEl.innerHTML = cab('Estádio 3D', 'O Morumbi em três anéis', texto); return; }
+  if (!jogos.length || !rows.length) {
+    E3.dados = null;
+    cabEl.innerHTML = cab('Estádio 3D', 'O Morumbi em três anéis', texto);
+    document.getElementById('e3-aviso').innerHTML = !jogos.length ? '<p class="vazio">Nenhum jogo no filtro.</p>' : soResumo(jogos);
+    document.getElementById('e3-leg').innerHTML = '';
+    M3D.colorir(null);
+    return e3Ficha();
+  }
+  const d = E3.dados = e3Agrega(rows), M = e3Met(), mk = E3.met === 'estadio' ? 'v' : E3.met;
+  const lista = [...d.por.values()].map(o => ({ o, x: M.f(o) })).filter(x => x.x != null);
+  const top = lista.reduce((b, x) => !b || x.x > b.x ? x : b, null);
+  const nome = esc(top.o.s.rotulo);
+  const titulo = {
+    v: `${nome} lidera em ingressos, com ${fP(top.x / d.tot * 100)} do filtro`,
+    pj: `${nome} vende mais por jogo: ${fN(top.x)} ingressos em média`,
+    a: `${nome} lidera a arrecadação, com ${fMi(top.x)}`,
+    pm: `${nome} tem o maior preço médio pago: ${fR(top.x)}`,
+    soc: `${nome} tem a maior parcela de sócios: ${fP(top.x)} dos ingressos`,
+  }[mk];
+  const noModelo = d.tot - soma([...d.fora.values()]);
+  cabEl.innerHTML = cab(`Estádio 3D · ${M.t.toLowerCase()} por setor`, titulo, texto, fP(noModelo / d.tot * 100, 0), 'dos ingressos em setores do modelo');
+  // o que o modelo não mostra (lacuna reportada, não distribuída entre os setores)
+  const fora = [...d.fora.entries()].sort((a, b) => b[1] - a[1]);
+  const nomeFora = k => k >= 0 ? cap(DIC.genericos[k]) : 'linhas sem setor identificado no borderô';
+  document.getElementById('e3-aviso').innerHTML = avisoFora(jogos) + (fora.length ? `<div class="aviso">${fN(d.tot - noModelo)} ingressos (${fP((d.tot - noModelo) / d.tot * 100)}) do filtro ficam fora do modelo, porque não há posição para eles no estádio: ${fora.map(([k, v]) => `${esc(nomeFora(k))} (${fN(v)})`).join(', ')}. Eles entram nos totais das outras abas.</div>` : '');
+  // cores
+  if (E3.met === 'estadio') {
+    M3D.colorir(null);
+    document.getElementById('e3-leg').innerHTML = '<span class="rot">Cores do estádio · escolha uma medida para colorir os setores</span>';
+  } else {
+    const xs = lista.map(x => x.x), max = Math.max(...xs), min = Math.min(...xs);
+    const cor = x => heat(0.18 + 0.82 * (max === min ? 1 : (x - min) / (max - min)));
+    M3D.colorir(new Map(lista.map(x => [x.o.s, cor(x.x)])), E3_SEM);
+    const semDado = M3D.setores.some(s => s.tipo !== 'cabine' && !lista.some(x => x.o.s === s));
+    document.getElementById('e3-leg').innerHTML = `<span class="rot">${M.t}</span><span class="v">${M.curto(min)}</span><i class="grad" style="background:linear-gradient(90deg,${[0.18, 0.385, 0.59, 0.795, 1].map(heat).join(',')})"></i><span class="v">${M.curto(max)}</span>`
+      + (semDado ? `<span class="sem"><i style="background:${E3_SEM}"></i>Sem ingressos no filtro</span>` : '');
+  }
+  e3Ficha();
+}
+
+function e3Dica(s) {
+  if (s.tipo === 'cabine') return `<b>${esc(s.rotulo)}</b><span>não é setor de venda</span>`;
+  const o = E3.dados && E3.dados.por.get(s), M = e3Met(), x = o ? M.f(o) : null;
+  return `<b>${esc(s.rotulo)}</b><span>${!o ? 'sem ingressos no filtro' : x == null ? '—' : M.fmt(x) + M.un}</span>`;
+}
+
+function e3Ficha() {
+  const el = document.getElementById('e3-ficha'); if (!el || !M3D) return;
+  M3D.selecionar(E3.sel);
+  const d = E3.dados, s = E3.sel;
+  if (!d) { el.innerHTML = ''; return; }
+  if (!s) return e3Lista(el, d);
+  const lado = POS_NOME[s.posicao] || '';
+  const onde = s.tipo === 'cabine' ? `Cabines de transmissão · ${lado}` : s.tipo === 'camarote' ? `${s.anel === 'terreo' ? 'Camarotes do térreo' : 'Camarotes superiores'} · ${lado}` : `${E3_ANEL[s.anel]} · ${lado}`;
+  let h = `<button class="m3d-fechar" id="e3-fechar" title="Voltar à lista" aria-label="Fechar">×</button><div class="rot d">${onde}</div><h3>${esc(s.rotulo)}${dot}</h3>`;
+  const o = d.por.get(s), nomes = e3Nomes(s);
+  let depois = null;   // gráfico desenhado depois que a ficha está na página
+  const base = (contagem) => `<div class="m3d-base"><span class="rot">Na base</span>${nomes.map(n => `“${esc(n)}”${contagem ? ` <b>${fN(contagem(n))}</b>` : ''}`).join(' · ')}</div>`;
+  if (s.tipo === 'cabine') {
+    h += '<p class="txt">Não é setor de venda: as cabines não aparecem nos borderôs. Um lado é a TV e o outro o rádio; qual é qual não foi confirmado.</p>';
+  } else if (!o) {
+    h += base() + `<p class="txt">${nomes.some(n => DIC.genericos.includes(n)) ? 'Nenhum ingresso neste setor nos jogos do filtro.' : 'Nenhum borderô da base traz este setor.'}</p>`;
+  } else {
+    const mk = E3.met === 'estadio' ? 'v' : E3.met, n = o.g.size, pm = o.vp ? o.ap / o.vp : null;
+    const nDet = DET(sel().jogos).length;
+    h += base(nomes.length > 1 ? nm => o.gen.get(DIC.genericos.indexOf(nm)) || 0 : null)
+      + `<div class="kpis">${kpiV('Ingressos', o.v, `${fP(o.v / d.tot * 100)} do filtro`, mk === 'v', false)}
+        ${kpi('Por jogo', fN(o.v / n), '', 'média nos jogos com venda', mk === 'pj')}
+        ${kpiV('Arrecadação', o.a, `${fP(o.a / d.totA * 100)} do filtro`, mk === 'a')}
+        ${kpi('Preço médio pago', pm == null ? '—' : nf2.format(pm), pm == null ? '' : 'R$', 'sem as gratuidades', mk === 'pm')}
+        ${kpi('Sócios', fP(o.vs / o.v * 100), '', `${fN(o.vs)} ingressos de sócio`, mk === 'soc')}
+        ${kpi('Jogos com venda', fN(n), '', `de ${nDet} com borderô no filtro`)}</div>`;
+    const partes = [{ nome: 'Sócio-torcedor', v: o.tipo[0], cor: C.r }, { nome: 'Inteira', v: o.tipo[1], cor: C.e }, { nome: 'Meia-entrada', v: o.tipo[2], cor: C.c3 }, { nome: 'Gratuidade', v: o.tipo[3], cor: C.c1 }].filter(p => p.v > 0);
+    h += `<div class="m3d-sec"><div class="rot">Tipo de ingresso</div>${b100(partes)}</div>`;
+    const anos = new Map(); for (const [g, v] of o.g) { const a = J[g].ano, x = anos.get(a) || { v: 0, n: 0 }; x.v += v; x.n++; anos.set(a, x); }
+    const ak = [...anos.keys()].sort(), am = ak.map(a => anos.get(a).v / anos.get(a).n);
+    h += `<div class="m3d-sec"><div class="rot">Ingressos por jogo, por ano</div><div class="graf"><canvas id="g-e3-ano"></canvas></div></div>`;
+    const topJ = [...o.g.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+    h += `<div class="m3d-sec"><div class="rot">Jogos com mais ingressos no setor</div>${rec(topJ.map(([g, v]) => ({ q: jogoNome(J[g]), s: jogoSub(J[g]), v: fN(v) })))}</div>`;
+    const ns = [...o.nomes.entries()].sort((a, b) => b[1] - a[1]);
+    h += `<div class="m3d-sec"><div class="rot">Nomes no borderô · ${ns.length}</div><ul class="m3d-nomes">${ns.slice(0, 6).map(([k, v]) => `<li><span>${esc(DIC.nomes[k])}</span><b>${fN(v)}</b></li>`).join('')}</ul>${ns.length > 6 ? `<p class="nota">E mais ${ns.length - 6} ${ns.length - 6 === 1 ? 'nome' : 'nomes'}.</p>` : ''}</div>`;
+    if (s.tipo === 'camarote') h += '<p class="nota" style="margin-top:14px">A ligação das faixas de camarote do modelo com os nomes do borderô é aproximada.</p>';
+    depois = () => barras('g-e3-ano', ak.map(rotAno), am, { fmt: fN, fmtRot: fMil, tip: i => `${fN(am[i])} por jogo · ${anos.get(ak[i]).n} ${anos.get(ak[i]).n === 1 ? 'jogo' : 'jogos'}` });
+  }
+  el.innerHTML = h;
+  if (depois) depois();
+  document.getElementById('e3-fechar').onclick = () => { E3.sel = null; e3Ficha(); };
+}
+
+// Sem setor escolhido: a lista dos setores do modelo pela medida da cor, clicável.
+function e3Lista(el, d) {
+  const M = e3Met();
+  const L = M3D.setores.filter(s => s.tipo !== 'cabine' && d.por.has(s)).map(s => ({ _i: s.id, setor: s.rotulo, x: M.f(d.por.get(s)) }));
+  const sem = M3D.setores.filter(s => s.tipo !== 'cabine' && !d.por.has(s)).map(s => esc(s.rotulo));
+  el.innerHTML = `<div class="rot d">Setores do modelo · ${M.t}</div><h3 class="lista">Clique num setor no modelo ou na tabela${dot}</h3>
+    <div class="nota">A ficha mostra ingressos, arrecadação, preço, sócios e jogos do setor no filtro.</div><div id="e3-tab"></div>
+    ${sem.length ? `<p class="nota" style="margin-top:10px">Sem ingressos no filtro: ${sem.join(', ')}.</p>` : ''}`;
+  tabela('e3-tab', [{ k: 'setor', t: 'Setor', txt: 1 }, { k: 'x', t: M.t, bar: 1, fmt: v => v == null ? '—' : M.fmt(v), barW: 60 }], L,
+    { ordem: 'x', destaque: () => 0, clique: i => { E3.sel = M3D.setores[i]; e3Ficha(); } });
+}
+
+/* =====================================================================
    NOTAS E MÉTODO
    ===================================================================== */
 RENDER.notas = el => {
@@ -1055,6 +2622,10 @@ RENDER.notas = el => {
       <li>Série A 2022, jogo 253: os nomes dos setores saíram cortados no borderô, então os sócios desse jogo não são identificáveis.</li>
       <li>O borderô não traz o público da catraca nem o check-in de sócio. "Público" aqui é sempre o pagante registrado (ingressos emitidos), não quem de fato entrou.</li>
       <li>${rotAno(ANO_PARCIAL).endsWith('*') ? `${ANO_PARCIAL} está incompleto: vai até ${fData(ULTIMA)}.` : ''}</li></ul>
+      <h3>Estádio 3D</h3>
+      <p>O modelo da aba Estádio 3D é uma maquete estilizada, feita em Three.js, com medidas aproximadas. A borda interna das arquibancadas, a pista e o campo vêm do OpenStreetMap (dados © colaboradores do OpenStreetMap, licença ODbL), conferidos numa foto aérea. O resto, como alturas, fachada, cabines e telões, sai de fotos.</p>
+      <p>Cada setor do modelo é ligado aos borderôs pelo nome genérico do setor. A faixa de Camarote Superior / Tribuna de cada lado junta os nomes "camarote superior" e "camarote tribuna", e essa ligação das faixas de camarote é aproximada. O Camarote dos Ídolos, a Tribuna do Conselho e as linhas sem setor identificado ficam fora do modelo, porque não há posição para eles no estádio; a aba diz quantos ingressos ficam de fora em cada filtro, e eles continuam nos totais das outras abas.</p>
+      <p>A base não traz a capacidade de cada setor, por isso o modelo não mostra taxa de ocupação. As cabines de transmissão aparecem no modelo, mas não são setor de venda.</p>
       <h3>Glossário</h3>
       <dl class="glos">
         <dt>Público pagante</dt><dd>Total de ingressos do borderô, igual à soma dos setores. Inclui sócios, meia-entrada e gratuidades.</dd>
