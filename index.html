@@ -1031,6 +1031,11 @@ RENDER.notas = el => {
   const semPos = soma(Array.from({ length: NS }, (_, i) => S.pos[i] < 0 ? S.v[i] : 0)), totV = soma(S.v);
   el.innerHTML = cab('Notas e método', 'De onde vêm os números e o que eles não dizem', `Base com ${J.length} jogos, de ${fData(J[0].data)} a ${fData(ULTIMA)}. Painel gerado em ${fData(D.gerado)}.`)
     + `<div class="texto">
+      <h3>Sobre o projeto</h3>
+      <p>Sou Gaetano Giorlando Grinberg, estudante de Economia na FEA-USP.</p>
+      <p>Os dados deste painel vêm da minha monografia de conclusão de curso (TCC), <em>Determinantes da demanda por setores e tipos de ingressos em jogos de futebol no estado de São Paulo</em>. Para ela, reuni e tabulei os borderôs dos jogos dos quatro grandes clubes de São Paulo: Corinthians, Palmeiras, Santos e São Paulo.
+      Aqui o recorte é só o São Paulo como mandante no Morumbi. Os leitores de PDF são os mesmos da monografia, e a base continua sendo atualizada com os jogos novos.</p>
+      <p>Fiz este painel com a ajuda do Claude, assistente de IA da Anthropic, que trabalhou comigo na organização dos dados, nos códigos de atualização e na construção do painel.</p>
       <h3>Fonte</h3>
       <p>Boletins financeiros (borderôs) oficiais dos jogos do São Paulo como mandante no Morumbi (Estádio Cícero Pompeu de Toledo / MorumBIS, tratados como o mesmo estádio):
       CBF, Série A e Copa do Brasil (${porFonte.get('CBF')?.n || 0} jogos); FPF, Paulistão (${porFonte.get('FPF')?.n || 0}); Conmebol, Libertadores e Sul-Americana (${J.filter(g => g.fonte === 'CONMEBOL' && g.origem !== 'imprensa').length}).
